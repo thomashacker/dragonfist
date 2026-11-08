@@ -20,6 +20,10 @@ class RunLog:
         self.ev, self.he = csv.writer(self._ev), csv.writer(self._he)
         self.ev.writerow(["t", "kanal", "v", "t_us", "dauer_us", "glitch"])
         self.he.writerow(["t", "vbus", "vsys", "temp", "scan_hz", "uptime_s"])
+        self._pu = open(self.dir / "punches.csv", "w", buffering=1, newline="", encoding="utf-8")
+        self.pu = csv.writer(self._pu)
+        self.pu.writerow(["t", "nr", "ok", "status", "dt_us", "m_s", "km_h", "a", "b"])
+        self.punches, self.v_max, self.v_sum = [0, 0], 0.0, 0.0
         self.ch = [dict(brueche=0, glitches=0, min_us=None, max_us=0, sum_us=0, n=0, t0=None, erkannt=False)
                    for _ in names]
         self.marks, self.info, self.port = [], None, None
@@ -77,6 +81,17 @@ class RunLog:
             r[0] = h[k] if r[0] is None else min(r[0], h[k])
             r[1] = h[k] if r[1] is None else max(r[1], h[k])
 
+    def punch(self, r):
+        ok = r["ok"]
+        self.punches[ok] += 1
+        if ok:
+            self.v_max = max(self.v_max, r["v"])
+            self.v_sum += r["v"]
+        self.pu.writerow([f"{self.t():.4f}", r.get("n", ""), int(ok), r["msg"], "" if r["dt"] is None else r["dt"],
+                          f"{r['v']:.3f}" if ok else "", f"{r['v'] * 3.6:.1f}" if ok else "",
+                          "" if r["a"] is None else self.names[r["a"]], "" if r["b"] is None else self.names[r["b"]]])
+        self.note(f"PUNCH {r['msg']}" + (f" {r['v']:.2f} m/s" if ok else ""))
+
     def mark(self):
         n = len(self.marks) + 1
         self.marks.append(dict(n=n, t=round(self.t(), 3)))
@@ -94,7 +109,9 @@ class RunLog:
         return dict(run=self.dir.name, start=self.start, dauer_s=round(self.t(), 1), port=self.port, pico=self.info,
                     verbindungen=self.connects, zeilen=self.lines, fehlerhafte_zeilen=self.bad,
                     stream_luecken=self.gaps, max_luecke_s=round(self.gap_max, 3), vbus_ausfaelle=self.vbus_lost,
-                    health={k: v for k, v in self.rng.items()}, marker=self.marks, kanaele=kan)
+                    health={k: v for k, v in self.rng.items()}, marker=self.marks, kanaele=kan,
+                    schlaege=dict(ok=self.punches[1], verworfen=self.punches[0], max_km_h=round(self.v_max * 3.6, 1),
+                                  mittel_km_h=round(self.v_sum / self.punches[1] * 3.6, 1) if self.punches[1] else None))
 
     def flush(self, force=False):
         if force or time.monotonic() >= self.next_sum:
@@ -105,5 +122,5 @@ class RunLog:
     def close(self):
         self.note("ende")
         self.flush(True)
-        for f in (self.raw, self._ev, self._he):
+        for f in (self.raw, self._ev, self._he, self._pu):
             f.close()

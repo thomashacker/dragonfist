@@ -28,6 +28,11 @@ def main():
               f"{b['min'] if b['min'] is not None else '–':>9}{b['mittel'] if b['mittel'] is not None else '–':>9}"
               f"{b['max']:>9}{'  OFFEN' if k['offen'] else ''}")
 
+    pu = s.get("schlaege")
+    if pu:
+        print(f"
+schläge {pu['ok']}  verworfen {pu['verworfen']}  max {pu['max_km_h']} km/h  mittel {pu['mittel_km_h']} km/h")
+
     warn = []
     if s["fehlerhafte_zeilen"]:
         warn.append(f"{s['fehlerhafte_zeilen']} kaputte zeilen")

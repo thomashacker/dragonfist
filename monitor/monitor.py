@@ -10,7 +10,9 @@ import pygame
 import serial
 from serial.tools import list_ports
 
+from punch import Punch
 from runlog import RunLog, GLITCH_US
+from sound import Sfx
 
 W, H = 1024, 600
 A = (0, 3, 6, 9, 12, 15)
@@ -20,6 +22,7 @@ NAME = [f"A{i + 1}" for i in range(len(A))] + [f"B{i + 1}" for i in range(len(B)
 MA_PAIR = 21
 
 WHITE, GREY, DIM, BLACK = (235, 235, 235), (120, 120, 120), (50, 50, 50), (0, 0, 0)
+GREEN = (90, 230, 130)
 
 
 class Kanal:
@@ -30,8 +33,9 @@ class Kanal:
 
 
 class State:
-    def __init__(self, runlog=None):
+    def __init__(self, runlog=None, dist_mm=200):
         self.lock = threading.Lock()
+        self.punch = Punch(len(A), len(GP), dist_mm)
         self.reset()
         self.port = None
         self.health = {}
@@ -39,9 +43,14 @@ class State:
         self.rx = collections.deque(maxlen=400)
         self.rl = runlog
         self.mark = (0, 0.0)
+        self.sfx = collections.deque(maxlen=32)
 
     def connect(self, port):
         with self.lock:
+            if bool(port) != bool(self.port):
+                self.sfx.append("verbunden" if port else "getrennt")
+            if port:
+                self.reset()
             self.port = port
             if self.rl:
                 if port:
@@ -56,6 +65,7 @@ class State:
 
     def reset(self):
         self.ch = [Kanal() for _ in GP]
+        self.punch.low, self.punch.ph = 0, None
         self.log = collections.deque(maxlen=12)
 
     def feed(self, line):
@@ -75,14 +85,18 @@ class State:
                             c.v, c.t = v, now
                         c.seen0 |= not v
                     rl and rl.status(now, m)
+                    self.punch.status(m, now)
                 elif p[0] == "E":
                     i, v, tus = int(p[1]), int(p[2]), int(p[3])
                     c = self.ch[i]
                     if c.v == 1 and v == 0:
                         c.breaks += 1
+                    if c.v != v:
+                        self.sfx.append("frei" if v else "bruch")
                     c.v, c.t = v, now
                     c.seen0 |= not v
-                    self.log.appendleft((now, i, v, rl.event(i, v, tus) if rl else None))
+                    self.punch.edge(i, v, tus, now)
+                    self.log.appendleft((time.time(), i, v, rl.event(i, v, tus) if rl else None))
                 elif p[0] == "H":
                     self.health = dict(vbus=int(p[1]), vsys=int(p[2]) / 1000, temp=int(p[3]) / 10,
                                        scan=int(p[4]), up=int(p[5]) / 1000)
@@ -96,6 +110,13 @@ class State:
                 rl and rl.line(line.strip())
             except (ValueError, IndexError):
                 rl and rl.line(line.strip(), ok=False)
+
+    def tick(self, now):
+        with self.lock:
+            r = self.punch.tick(now)
+            if r:
+                r["ok"] and self.sfx.append("treffer")
+                self.rl and self.rl.punch(r)
 
     def rate(self, now):
         return sum(1 for t in self.rx if now - t < 1)
@@ -157,6 +178,7 @@ def demo(st, stop):
 class Ui:
     def __init__(self, surf):
         self.s = surf
+        self.mute = False
         mono = "consolas,dejavusansmono,liberationmono,couriernew"
         self.f = {k: pygame.font.SysFont(mono, n, bold=k in ("l", "xl")) for k, n in
                   (("xs", 12), ("s", 15), ("m", 20), ("l", 28), ("xl", 40))}
@@ -229,14 +251,33 @@ class Ui:
         word = {"ok": "SIGNAL", "bruch": "UNTERBROCHEN", "?": "UNGEPRÜFT"}[state]
         self.text(word, (r.centerx, r.y + 88), "s", fg, "midtop")
         self.text(f"BR {c.breaks}", (r.x + 10, r.bottom - 22), "xs", fg)
-        if c.v is not None:
-            self.text(f"{now - c.t:5.1f}s", (r.right - 8, r.bottom - 22), "xs", fg, "topright")
+
+    def punch_box(self, r, last, n, best, armed, now):
+        fresh = last and now - last["t"] < 3
+        self.box(r, WHITE if fresh else DIM)
+        self.text(f"SCHLAG #{n}", (r.x + 10, r.y + 8), "xs", GREY)
+        if armed:
+            msg, col = "MESSE …", WHITE
+        elif last:
+            msg, col = last["msg"], (GREEN if last["ok"] else GREY) if fresh else DIM
+        else:
+            msg, col = "BEREIT", GREY
+        self.text(msg, (r.centerx, r.y + 28), "s", col, "midtop")
+        v = last if last and last["ok"] else None
+        self.text(f"{v['v'] * 3.6:.1f}" if v else "–", (r.centerx, r.y + 52), "xl", GREEN if v and fresh else WHITE,
+                  "midtop")
+        self.text("km/h", (r.centerx, r.y + 96), "s", GREY, "midtop")
+        if v:
+            self.text(f"{v['v']:.2f} m/s · {v['dt'] / 1000:.1f} ms", (r.centerx, r.y + 114), "xs", GREY, "midtop")
+        self.text(f"MAX {best * 3.6:.1f}", (r.centerx, r.bottom - 18), "xs", GREY, "midtop")
 
     def draw(self, st, now):
         d = self.s
         d.fill(BLACK)
         with st.lock:
             ch, health, info, log = list(st.ch), dict(st.health), st.info, list(st.log)
+            pu = st.punch
+            last, n, best, armed = pu.last, pu.n, pu.best, pu.ph
             live, rate, port, (mk, mk_t) = st.live(now), st.rate(now), st.port, st.mark
             run = st.rl.dir.name if st.rl else None
         self.text("DRAGONFIST", (24, 10), "l")
@@ -258,6 +299,9 @@ class Ui:
             self.text(titel, (24, y), "xs", GREY)
             for k, i in enumerate(idx):
                 self.cell(pygame.Rect(24 + k * (cw + gap), y + 18, cw, 148), i, ch[i], now)
+
+        self.punch_box(pygame.Rect(24 + len(A) * (cw + gap), 78, W - 48 - len(A) * (cw + gap), 148),
+                       last, n, best, armed, now)
 
         hb = pygame.Rect(24, 408, 480, 166)
         self.box(hb, DIM)
@@ -283,7 +327,8 @@ class Ui:
         for k, (t, i, v, dur) in enumerate(log[:8]):
             y = lb.y + 30 + k * 17
             col = WHITE if k == 0 else GREY
-            self.text(f"-{now - t:6.2f}s", (lb.x + 12, y), "s", col)
+            self.text(time.strftime("%H:%M:%S", time.localtime(t)) + f".{int(t * 100) % 100:02d}", (lb.x + 12, y),
+                      "s", col)
             self.text(NAME[i], (lb.x + 120, y), "s", col)
             self.text("▼ BRUCH" if v == 0 else "▲ FREI", (lb.x + 170, y), "s", col)
             if dur is not None:
@@ -291,7 +336,8 @@ class Ui:
                           col, "topright")
 
         uid = f"PICO {info['uid']}  FW {info['ver']}" if info else ""
-        self.text(f"{uid}   * geschätzt   ESC ende · R reset · M marker · F vollbild", (24, H - 16), "xs", DIM)
+        keys = f"ESC ende · R reset · M marker · S ton {'aus' if self.mute else 'an'} · F vollbild"
+        self.text(f"{uid}   * geschätzt   {keys}", (24, H - 16), "xs", DIM)
 
         if not live:
             ov = pygame.Surface((W, H), pygame.SRCALPHA)
@@ -311,16 +357,20 @@ def main():
     ap.add_argument("--shot")
     ap.add_argument("--runs", default=str(Path(__file__).resolve().parent.parent / "runs"))
     ap.add_argument("--no-log", action="store_true")
+    ap.add_argument("--mute", action="store_true")
+    ap.add_argument("--abstand", type=float, default=200, help="mm zwischen Ebene A und B")
     a = ap.parse_args()
     if a.shot:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
 
+    pygame.mixer.pre_init(44100, -16, 1, 256)
     pygame.init()
     flags = pygame.SCALED | (pygame.FULLSCREEN if a.fullscreen else pygame.RESIZABLE)
     screen = pygame.display.set_mode((W, H), flags)
     pygame.display.set_caption("dragonfist monitor")
     rl = None if a.no_log else RunLog(a.runs, NAME, GP, "demo" if a.demo else "")
-    ui, st, stop = Ui(screen), State(rl), threading.Event()
+    ui, st, stop = Ui(screen), State(rl, a.abstand), threading.Event()
+    sfx, ui.mute = Sfx(), a.mute or bool(a.shot)
     threading.Thread(target=demo if a.demo else reader, args=(st, stop) if a.demo else (st, a.port, stop),
                      daemon=True).start()
 
@@ -333,11 +383,21 @@ def main():
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_r:
                     with st.lock:
                         st.reset()
+                        st.punch.n, st.punch.best, st.punch.last = 0, 0.0, None
                         rl and rl.note("reset")
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_m:
                     st.marker()
+                if e.type == pygame.KEYDOWN and e.key == pygame.K_s:
+                    ui.mute = not ui.mute
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_f:
                     pygame.display.toggle_fullscreen()
+            st.tick(time.monotonic())
+            with st.lock:
+                q = list(st.sfx)
+                st.sfx.clear()
+            if not ui.mute:
+                for k in dict.fromkeys(q):
+                    sfx.play(k)
             now = time.monotonic()
             ui.draw(st, now)
             pygame.display.flip()

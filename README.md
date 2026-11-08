@@ -19,13 +19,15 @@ Serial protocol (115200, one line per message):
 
 ## Monitor
 ```
-python monitor/monitor.py [--port COM6] [--fullscreen] [--demo]
+python monitor/monitor.py [--port COM6] [--abstand 200] [--fullscreen] [--demo] [--mute]
 ```
 
-Keys: `M` marker, `R` reset counters, `F` fullscreen, `ESC` quit.
+Keys: `M` marker, `R` reset counters, `S` sound, `F` fullscreen, `ESC` quit.
+
+Punch: first A break starts, first B break stops, counted once all beams are clear for 30 ms. Speed = `--abstand` (mm, A to B) / dt.
 
 ## Runs
-Every monitor session writes `runs/<timestamp>/`: `raw.log` (all serial lines, host time), `events.csv` (breaks with Pico µs timestamps and duration, glitch < 3 ms), `health.csv`, `summary.json` (updated every 5 s).
+Every monitor session writes `runs/<timestamp>/`: `raw.log` (all serial lines, host time), `events.csv` (breaks with Pico µs timestamps and duration, glitch < 3 ms), `health.csv`, `punches.csv`, `summary.json` (updated every 5 s).
 ```
 python monitor/report.py [run] [--events N]
 ```
