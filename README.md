@@ -26,6 +26,17 @@ Keys: `M` marker, `R` reset counters, `S` sound, `F` fullscreen, `ESC` quit.
 
 Punch: first A break starts, first B break stops, counted once all beams are clear for 30 ms. Speed = `--abstand` (mm, A to B) / dt.
 
+## App
+```
+python app/main.py [--sim] [--fullscreen] [--abstand 200] [--mute]
+```
+Arrows/joystick select, A/D change values, Enter/Space/button 0 ok, Esc/Backspace/button 1 back, F11 fullscreen.
+`--sim` replaces the Pico: `←`/`→` = full left/right punch, or by hand `Q` then `W` (A1, B1), `O` then `P` (A6, B7).
+Settings (audio device, volume, A–B distance) persist in `settings.json`.
+
+## Sounds
+Synthesized from `DEFAULTS` in `monitor/sound.py`. A file `app/assets/sounds/<name>.wav` replaces the synth sound.
+
 ## Runs
 Every monitor session writes `runs/<timestamp>/`: `raw.log` (all serial lines, host time), `events.csv` (breaks with Pico µs timestamps and duration, glitch < 3 ms), `health.csv`, `punches.csv`, `summary.json` (updated every 5 s).
 ```

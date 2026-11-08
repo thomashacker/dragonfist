@@ -44,6 +44,7 @@ class State:
         self.rl = runlog
         self.mark = (0, 0.0)
         self.sfx = collections.deque(maxlen=32)
+        self.hits = collections.deque(maxlen=16)
 
     def connect(self, port):
         with self.lock:
@@ -116,6 +117,7 @@ class State:
             r = self.punch.tick(now)
             if r:
                 r["ok"] and self.sfx.append("treffer")
+                self.hits.append(r)
                 self.rl and self.rl.punch(r)
 
     def rate(self, now):
@@ -176,23 +178,27 @@ def demo(st, stop):
 
 
 class Ui:
-    def __init__(self, surf):
+    def __init__(self, surf, theme=None):
         self.s = surf
+        t = dict(FG=WHITE, MID=GREY, LO=DIM, BG=BLACK, OK=GREEN, ACC=WHITE, TFMT="%H:%M:%S",
+                 WORDS={"ok": "SIGNAL", "bruch": "UNTERBROCHEN", "?": "OFFLINE"}) | (theme or {})
+        for k, v in t.items():
+            setattr(self, k, v)
         self.mute = False
         mono = "consolas,dejavusansmono,liberationmono,couriernew"
         self.f = {k: pygame.font.SysFont(mono, n, bold=k in ("l", "xl")) for k, n in
                   (("xs", 12), ("s", 15), ("m", 20), ("l", 28), ("xl", 40))}
 
-    def text(self, t, pos, size="s", col=WHITE, anchor="topleft"):
-        img = self.f[size].render(t, True, col)
+    def text(self, t, pos, size="s", col=None, anchor="topleft"):
+        img = self.f[size].render(t, True, col or self.FG)
         r = img.get_rect(**{anchor: pos})
         self.s.blit(img, r)
         return r
 
-    def box(self, r, col=WHITE, fill=None):
+    def box(self, r, col=None, fill=None):
         if fill:
             pygame.draw.rect(self.s, fill, r)
-        pygame.draw.rect(self.s, col, r, 1)
+        pygame.draw.rect(self.s, col or self.FG, r, 1)
 
     def beam(self, cx, cy, state, col):
         x0, x1 = cx - 42, cx + 42
@@ -212,8 +218,8 @@ class Ui:
             for x in range(x0 + 10, x1 - 10, 8):
                 pygame.draw.line(self.s, col, (x, cy), (x + 3, cy), 1)
 
-    def icon(self, kind, x, y, col=WHITE):
-        d = self.s
+    def icon(self, kind, x, y, col=None):
+        d, col = self.s, col or self.FG
         if kind == "usb":
             pygame.draw.rect(d, col, (x, y + 4, 10, 8), 2)
             pygame.draw.line(d, col, (x + 10, y + 8), (x + 16, y + 8), 2)
@@ -239,73 +245,62 @@ class Ui:
 
     def cell(self, r, i, c, now):
         if c.v == 0:
-            state, fg, fill = "bruch", BLACK, WHITE
+            state, fg, fill = "bruch", self.BG, self.ACC
         elif c.v == 1 and c.seen0:
-            state, fg, fill = "ok", WHITE, None
+            state, fg, fill = "ok", self.FG, None
         else:
-            state, fg, fill = "?", GREY, None
-        self.box(r, WHITE if state != "?" else DIM, fill)
+            state, fg, fill = "?", self.MID, None
+        self.box(r, self.FG if state != "?" else self.LO, fill)
         self.text(NAME[i], (r.x + 10, r.y + 6), "l", fg)
-        self.text(f"GP{GP[i]}", (r.right - 8, r.y + 10), "xs", fg if fill else GREY, "topright")
+        self.text(f"GP{GP[i]}", (r.right - 8, r.y + 10), "xs", fg if fill else self.MID, "topright")
         self.beam(r.centerx, r.y + 64, state, fg)
-        word = {"ok": "SIGNAL", "bruch": "UNTERBROCHEN", "?": "UNGEPRÜFT"}[state]
+        word = self.WORDS[state]
         self.text(word, (r.centerx, r.y + 88), "s", fg, "midtop")
         self.text(f"BR {c.breaks}", (r.x + 10, r.bottom - 22), "xs", fg)
 
     def punch_box(self, r, last, n, best, armed, now):
         fresh = last and now - last["t"] < 3
-        self.box(r, WHITE if fresh else DIM)
-        self.text(f"SCHLAG #{n}", (r.x + 10, r.y + 8), "xs", GREY)
+        self.box(r, self.FG if fresh else self.LO)
+        self.text(f"SCHLAG #{n}", (r.x + 10, r.y + 8), "xs", self.MID)
         if armed:
-            msg, col = "MESSE …", WHITE
+            msg, col = "MESSE …", self.FG
         elif last:
-            msg, col = last["msg"], (GREEN if last["ok"] else GREY) if fresh else DIM
+            msg, col = last["msg"], (self.OK if last["ok"] else self.MID) if fresh else self.LO
         else:
-            msg, col = "BEREIT", GREY
+            msg, col = "BEREIT", self.MID
         self.text(msg, (r.centerx, r.y + 28), "s", col, "midtop")
         v = last if last and last["ok"] else None
-        self.text(f"{v['v'] * 3.6:.1f}" if v else "–", (r.centerx, r.y + 52), "xl", GREEN if v and fresh else WHITE,
+        self.text(f"{v['v'] * 3.6:.1f}" if v else "–", (r.centerx, r.y + 52), "xl", self.OK if v and fresh else self.FG,
                   "midtop")
-        self.text("km/h", (r.centerx, r.y + 96), "s", GREY, "midtop")
+        self.text("km/h", (r.centerx, r.y + 96), "s", self.MID, "midtop")
         if v:
-            self.text(f"{v['v']:.2f} m/s · {v['dt'] / 1000:.1f} ms", (r.centerx, r.y + 114), "xs", GREY, "midtop")
-        self.text(f"MAX {best * 3.6:.1f}", (r.centerx, r.bottom - 18), "xs", GREY, "midtop")
+            self.text(f"{v['v']:.2f} m/s · {v['dt'] / 1000:.1f} ms", (r.centerx, r.y + 114), "xs", self.MID, "midtop")
+        self.text(f"MAX {best * 3.6:.1f}", (r.centerx, r.bottom - 18), "xs", self.MID, "midtop")
 
     def draw(self, st, now):
         d = self.s
-        d.fill(BLACK)
+        d.fill(self.BG)
         with st.lock:
-            ch, health, info, log = list(st.ch), dict(st.health), st.info, list(st.log)
+            ch, health, log = list(st.ch), dict(st.health), list(st.log)
             pu = st.punch
             last, n, best, armed = pu.last, pu.n, pu.best, pu.ph
             live, rate, port, (mk, mk_t) = st.live(now), st.rate(now), st.port, st.mark
-            run = st.rl.dir.name if st.rl else None
-        self.text("DRAGONFIST", (24, 10), "l")
-        self.text("// SENSOR MONITOR", (220, 18), "s", GREY)
-        status = f"LIVE  {port}" if live else (f"KEINE DATEN  {port}" if port else "SUCHE PICO …")
-        r = self.text(status, (W - 24, 18), "s", WHITE if live else GREY, "topright")
-        self.icon("link", r.x - 24, 17, WHITE if live else GREY)
-        if run:
-            r = self.text(f"REC {run}" + (f"  M{mk}" if mk else ""), (r.x - 40, 19), "xs", GREY, "topright")
-            if int(now * 2) % 2:
-                pygame.draw.circle(d, WHITE, (r.x - 10, 26), 4)
-        if mk and now - mk_t < 2:
-            self.text(f"MARKER {mk}", (W // 2, 18), "m", WHITE, "midtop")
-        pygame.draw.line(d, DIM, (24, 50), (W - 24, 50))
+        if mk:
+            self.text(f"MARKER {mk}", (24, 8), "s", self.FG if now - mk_t < 2 else self.MID)
 
         cw, gap = 132, 8
-        for row, (titel, idx, y) in enumerate((("EBENE A · VORNE", range(len(A)), 60),
-                                                ("EBENE B · HINTEN", range(len(A), len(GP)), 232))):
-            self.text(titel, (24, y), "xs", GREY)
+        for titel, idx, y in (("EBENE B · HINTEN", range(len(A), len(GP)), 30),
+                              ("EBENE A · VORNE", range(len(A)), 204)):
+            self.text(titel, (24, y), "xs", self.MID)
             for k, i in enumerate(idx):
                 self.cell(pygame.Rect(24 + k * (cw + gap), y + 18, cw, 148), i, ch[i], now)
 
-        self.punch_box(pygame.Rect(24 + len(A) * (cw + gap), 78, W - 48 - len(A) * (cw + gap), 148),
-                       last, n, best, armed, now)
+        y0, hgt = 384, H - 384 - 10
+        self.punch_box(pygame.Rect(24, y0, 200, hgt), last, n, best, armed, now)
 
-        hb = pygame.Rect(24, 408, 480, 166)
-        self.box(hb, DIM)
-        self.text("HEALTH", (hb.x + 12, hb.y + 8), "xs", GREY)
+        hb = pygame.Rect(232, y0, 400, hgt)
+        self.box(hb, self.LO)
+        self.text("HEALTH", (hb.x + 12, hb.y + 8), "xs", self.MID)
         erkannt = sum(c.seen0 for c in ch)
         rows = [("usb", "USB 5V", ("OK" if health.get("vbus") else "FEHLT") if health else "–"),
                 ("volt", "VSYS", f"{health['vsys']:.2f} V" if health else "–"),
@@ -313,40 +308,36 @@ class Ui:
                 ("scan", "SCAN", f"{health['scan'] / 1000:.1f} kHz" if health else "–"),
                 ("link", "LINK", f"{rate} msg/s"),
                 ("eye", "ERKANNT", f"{erkannt}/{len(GP)}"),
-                ("amp", "STROM*", f"~{erkannt * MA_PAIR} mA"),
+                ("amp", "STROM", f"~{erkannt * MA_PAIR} mA"),
                 ("scan", "UPTIME", time.strftime("%H:%M:%S", time.gmtime(health["up"])) if health else "–")]
         for k, (ic, lab, val) in enumerate(rows):
-            x, y = hb.x + 14 + (k // 4) * 236, hb.y + 32 + (k % 4) * 34
+            x, y = hb.x + 12 + (k // 4) * 196, hb.y + 36 + (k % 4) * 38
             self.icon(ic, x, y + 2)
-            self.text(lab, (x + 26, y + 3), "s", GREY)
-            self.text(val, (x + 220, y), "m", WHITE, "topright")
+            self.text(lab, (x + 24, y + 3), "s", self.MID)
+            self.text(val, (x + 184, y), "m", self.FG, "topright")
 
-        lb = pygame.Rect(520, 408, W - 544, 166)
-        self.box(lb, DIM)
-        self.text("EREIGNISSE", (lb.x + 12, lb.y + 8), "xs", GREY)
-        for k, (t, i, v, dur) in enumerate(log[:8]):
-            y = lb.y + 30 + k * 17
-            col = WHITE if k == 0 else GREY
-            self.text(time.strftime("%H:%M:%S", time.localtime(t)) + f".{int(t * 100) % 100:02d}", (lb.x + 12, y),
+        lb = pygame.Rect(640, y0, W - 664, hgt)
+        self.box(lb, self.LO)
+        self.text("EREIGNISSE", (lb.x + 12, lb.y + 8), "xs", self.MID)
+        for k, (t, i, v, dur) in enumerate(log[:9]):
+            y = lb.y + 30 + k * 18
+            col = self.FG if k == 0 else self.MID
+            self.text(time.strftime(self.TFMT, time.localtime(t)) + f".{int(t * 100) % 100:02d}", (lb.x + 12, y),
                       "s", col)
             self.text(NAME[i], (lb.x + 120, y), "s", col)
-            self.text("▼ BRUCH" if v == 0 else "▲ FREI", (lb.x + 170, y), "s", col)
+            self.text("▼ BRUCH" if v == 0 else "▲ FREI", (lb.x + 162, y), "s", col)
             if dur is not None:
                 self.text(("! " if dur < GLITCH_US else "") + f"{dur / 1000:.1f} ms", (lb.right - 12, y), "s",
                           col, "topright")
 
-        uid = f"PICO {info['uid']}  FW {info['ver']}" if info else ""
-        keys = f"ESC ende · R reset · M marker · S ton {'aus' if self.mute else 'an'} · F vollbild"
-        self.text(f"{uid}   * geschätzt   {keys}", (24, H - 16), "xs", DIM)
-
         if not live:
             ov = pygame.Surface((W, H), pygame.SRCALPHA)
-            ov.fill((0, 0, 0, 190))
+            ov.fill((*self.BG, 190))
             d.blit(ov, (0, 0))
             msg = "PICO VERBUNDEN – KEINE DATEN" if port else "KEIN PICO GEFUNDEN"
             sub = "läuft main.py auf dem Pico?" if port else "USB-Kabel prüfen"
-            self.text(msg, (W // 2, H // 2 - 24), "xl", WHITE, "center")
-            self.text(sub, (W // 2, H // 2 + 20), "s", GREY, "center")
+            self.text(msg, (W // 2, H // 2 - 24), "xl", self.FG, "center")
+            self.text(sub, (W // 2, H // 2 + 20), "s", self.MID, "center")
 
 
 def main():

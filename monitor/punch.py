@@ -40,7 +40,10 @@ class Punch:
         if self.ph is None or self.low or self.clear is None or now - self.clear < SETTLE_S:
             return None
         ph, self.ph = self.ph, None
-        r = dict(t=now, ok=False, v=None, dt=None, a=self.ach, b=self.bch)
+        a = self.ach if self.ach is not None else self.bch
+        side = None if a is None else (a if a < self.n_a else a - self.n_a) / self.n_a
+        hand = None if side is None else ("L" if side < 0.5 else "R")
+        r = dict(t=now, ok=False, v=None, dt=None, a=self.ach, b=self.bch, hand=hand)
         if ph == "AB":
             dt = (self.tb - self.ta) % WRAP
             r["dt"] = dt
