@@ -37,6 +37,13 @@ Settings (audio device, volume, A–B distance) persist in `settings.json`.
 ## Sounds
 Synthesized from `DEFAULTS` in `monitor/sound.py`. A file `app/assets/sounds/<name>.wav` replaces the synth sound.
 
+## Tests
+```
+.venv/Scripts/pip install -r requirements-dev.txt
+.venv/Scripts/python -m pytest
+```
+Covers punch detection, protocol parsing, run log, synth, every app scene (headless) and performance budgets.
+
 ## Runs
 Every monitor session writes `runs/<timestamp>/`: `raw.log` (all serial lines, host time), `events.csv` (breaks with Pico µs timestamps and duration, glitch < 3 ms), `health.csv`, `punches.csv`, `summary.json` (updated every 5 s).
 ```
