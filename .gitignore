@@ -2,3 +2,10 @@
 __pycache__/
 runs/
 settings.json
+.pytest_cache/
+cad/ausgabe/
+cad/*.blend
+cad/*.blend1
+cad/bestellt.json
+cad/Einkaufsliste.md
+cad/Jetson.md

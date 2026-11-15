@@ -1,0 +1,387 @@
+{
+  "version": 1,
+  "author": "VVD Schlag-Messgerät (automatisch erzeugt)",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-pi-pico",
+      "id": "pico",
+      "top": 0,
+      "left": 0,
+      "attrs": {
+        "env": "micropython-20231227-v1.22.0"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnA1",
+      "top": -60,
+      "left": -230,
+      "attrs": {
+        "color": "red",
+        "key": "1",
+        "bounce": "0",
+        "label": "A1 (-150) Taste 1"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnA2",
+      "top": -12,
+      "left": -230,
+      "attrs": {
+        "color": "red",
+        "key": "2",
+        "bounce": "0",
+        "label": "A2 (-95) Taste 2"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnA3",
+      "top": 36,
+      "left": -230,
+      "attrs": {
+        "color": "red",
+        "key": "3",
+        "bounce": "0",
+        "label": "A3 (-40) Taste 3"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnA4",
+      "top": 84,
+      "left": -230,
+      "attrs": {
+        "color": "red",
+        "key": "4",
+        "bounce": "0",
+        "label": "A4 (+40) Taste 4"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnA5",
+      "top": 132,
+      "left": -230,
+      "attrs": {
+        "color": "red",
+        "key": "5",
+        "bounce": "0",
+        "label": "A5 (+95) Taste 5"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnA6",
+      "top": 180,
+      "left": -230,
+      "attrs": {
+        "color": "red",
+        "key": "6",
+        "bounce": "0",
+        "label": "A6 (+150) Taste 6"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnB1",
+      "top": -60,
+      "left": 160,
+      "attrs": {
+        "color": "blue",
+        "key": "a",
+        "bounce": "0",
+        "label": "B1 (-165) Taste a"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnB2",
+      "top": -12,
+      "left": 160,
+      "attrs": {
+        "color": "blue",
+        "key": "s",
+        "bounce": "0",
+        "label": "B2 (-110) Taste s"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnB3",
+      "top": 36,
+      "left": 160,
+      "attrs": {
+        "color": "blue",
+        "key": "d",
+        "bounce": "0",
+        "label": "B3 (-55) Taste d"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnB4",
+      "top": 84,
+      "left": 160,
+      "attrs": {
+        "color": "blue",
+        "key": "f",
+        "bounce": "0",
+        "label": "B4 (+0) Taste f"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnB5",
+      "top": 132,
+      "left": 160,
+      "attrs": {
+        "color": "blue",
+        "key": "g",
+        "bounce": "0",
+        "label": "B5 (+55) Taste g"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnB6",
+      "top": 180,
+      "left": 160,
+      "attrs": {
+        "color": "blue",
+        "key": "h",
+        "bounce": "0",
+        "label": "B6 (+110) Taste h"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnB7",
+      "top": 228,
+      "left": 160,
+      "attrs": {
+        "color": "blue",
+        "key": "j",
+        "bounce": "0",
+        "label": "B7 (+165) Taste j"
+      }
+    },
+    {
+      "type": "wokwi-neopixel-matrix",
+      "id": "led_links",
+      "top": -120,
+      "left": -420,
+      "attrs": {
+        "rows": "19",
+        "cols": "1"
+      }
+    },
+    {
+      "type": "wokwi-neopixel-matrix",
+      "id": "led_rechts",
+      "top": -120,
+      "left": 380,
+      "attrs": {
+        "rows": "19",
+        "cols": "1"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "btnA1:1.r",
+      "pico:GP0",
+      "gold",
+      []
+    ],
+    [
+      "btnA1:2.r",
+      "pico:GND.8",
+      "black",
+      []
+    ],
+    [
+      "btnA2:1.r",
+      "pico:GP3",
+      "gold",
+      []
+    ],
+    [
+      "btnA2:2.r",
+      "pico:GND.8",
+      "black",
+      []
+    ],
+    [
+      "btnA3:1.r",
+      "pico:GP6",
+      "gold",
+      []
+    ],
+    [
+      "btnA3:2.r",
+      "pico:GND.8",
+      "black",
+      []
+    ],
+    [
+      "btnA4:1.r",
+      "pico:GP9",
+      "gold",
+      []
+    ],
+    [
+      "btnA4:2.r",
+      "pico:GND.8",
+      "black",
+      []
+    ],
+    [
+      "btnA5:1.r",
+      "pico:GP12",
+      "gold",
+      []
+    ],
+    [
+      "btnA5:2.r",
+      "pico:GND.8",
+      "black",
+      []
+    ],
+    [
+      "btnA6:1.r",
+      "pico:GP15",
+      "gold",
+      []
+    ],
+    [
+      "btnA6:2.r",
+      "pico:GND.8",
+      "black",
+      []
+    ],
+    [
+      "btnB1:1.l",
+      "pico:GP28",
+      "gold",
+      []
+    ],
+    [
+      "btnB1:2.l",
+      "pico:GND.3",
+      "black",
+      []
+    ],
+    [
+      "btnB2:1.l",
+      "pico:GP27",
+      "gold",
+      []
+    ],
+    [
+      "btnB2:2.l",
+      "pico:GND.3",
+      "black",
+      []
+    ],
+    [
+      "btnB3:1.l",
+      "pico:GP26",
+      "gold",
+      []
+    ],
+    [
+      "btnB3:2.l",
+      "pico:GND.3",
+      "black",
+      []
+    ],
+    [
+      "btnB4:1.l",
+      "pico:GP21",
+      "gold",
+      []
+    ],
+    [
+      "btnB4:2.l",
+      "pico:GND.3",
+      "black",
+      []
+    ],
+    [
+      "btnB5:1.l",
+      "pico:GP20",
+      "gold",
+      []
+    ],
+    [
+      "btnB5:2.l",
+      "pico:GND.3",
+      "black",
+      []
+    ],
+    [
+      "btnB6:1.l",
+      "pico:GP18",
+      "gold",
+      []
+    ],
+    [
+      "btnB6:2.l",
+      "pico:GND.3",
+      "black",
+      []
+    ],
+    [
+      "btnB7:1.l",
+      "pico:GP17",
+      "gold",
+      []
+    ],
+    [
+      "btnB7:2.l",
+      "pico:GND.3",
+      "black",
+      []
+    ],
+    [
+      "led_links:DIN",
+      "pico:GP16",
+      "green",
+      []
+    ],
+    [
+      "led_links:VCC",
+      "pico:VBUS",
+      "red",
+      []
+    ],
+    [
+      "led_links:GND",
+      "pico:GND.6",
+      "black",
+      []
+    ],
+    [
+      "led_rechts:DIN",
+      "pico:GP19",
+      "green",
+      []
+    ],
+    [
+      "led_rechts:VCC",
+      "pico:VBUS",
+      "red",
+      []
+    ],
+    [
+      "led_rechts:GND",
+      "pico:GND.6",
+      "black",
+      []
+    ]
+  ],
+  "dependencies": {}
+}
