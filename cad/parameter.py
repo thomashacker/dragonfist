@@ -81,6 +81,7 @@ SCHWALBE_SPIEL = 0.15         # je Seite; Teile werden zusätzlich verklebt
 
 # Sensorkäfig: obere und untere Platte über 4 Pfosten fest verbunden
 PFOSTEN = 10                  # Alu-Vierkantrohr 10 x 10 mm (Baumarkt), mit Metallsäge kürzen
+PFOSTEN_LUFT = 1              # so viel kürzer als das Maß zwischen den Platten: zu lang klemmt, zu kurz stört nicht
 HUELSE_HOEHE = 15             # Steckhülse auf der Platte
 HUELSE_WAND = 3
 LEISTE_LUFT_SEITLICH = 0.5    # Luft zwischen Platte und Seitenbrett, je Seite
@@ -145,6 +146,8 @@ LED_STREIFEN = (10, 2.5)      # Breite, Dicke des Streifens (klebt auf dem Pfost
 DECKEL_DICKE = 2
 DECKEL_LUFT = 3               # Abstand über dem höchsten Teil darunter (Pico-Board 21 mm hoch)
 DECKEL_SAEULE_D = 9
+DECKEL_SCHUERZE = 1.6         # Wand vorne/hinten vom Deckel bis auf die Kabelkanäle (blickdicht)
+DECKEL_FUGE = 0               # Schürze liegt auf der Kanaloberkante auf (stützt den Deckel über die ganze Länge)
 NETZTEIL_A = 4.0              # MeanWell 5 V / 4 A
 
 # Kabelkanal außen hinten am linken Seitenbrett (gedruckt, 2 Teile): USB Pico -> Jetson,

@@ -263,7 +263,7 @@ $('dreh').onclick = () => { richtung = -richtung; schneiden(); };
 
 const lader = new GLTFLoader();
 const geladen = await Promise.all(STUFEN.map(([datei, titel]) =>
-  lader.loadAsync(`../ausgabe/stufen/${datei}.glb`).then(g => ({ g, titel, datei })).catch(() => null)));
+  lader.loadAsync(`../ausgabe/stufen/${datei}.glb?t=${Date.now()}`).then(g => ({ g, titel, datei })).catch(() => null)));
 for (const s of geladen) {
   if (!s) continue;
   const wurzel = s.g.scene;
@@ -287,7 +287,7 @@ for (const s of geladen) {
 box.setFromObject(modell);
 box.getCenter(mitte);
 box.getSize(groesse);
-fetch('../ausgabe/stufen/1_Rahmen.glb', { method: 'HEAD' }).then(r => {
+fetch('../ausgabe/stufen/1_Rahmen.glb', { method: 'HEAD', cache: 'no-store' }).then(r => {
   const d = r.headers.get('last-modified');
   if (d) $('stand').textContent = new Date(d).toLocaleDateString('de-DE');
 });

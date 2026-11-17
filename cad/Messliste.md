@@ -54,4 +54,23 @@ Dazu: Führt das Breakout-Board **alle** Pins GP0–GP28 und GND auf Schraubklem
 | Boxenflansch | Lochkreis bzw. Abstand der Befestigungslöcher | – | |
 | Stativ Pronomic SPS-5S | kleinste / größte Höhe Oberkante Rohr | 670 / 1200 mm | |
 | Holzbretter (alle 4) | Länge × Breite × Dicke | 400 × 250 × 18 mm | |
-| Alu-Pfosten (alle 4, nach dem Sägen) | Länge | 356 mm | |
+| Alu-Pfosten (alle 4, nach dem Sägen) | Länge | 355 mm | |
+
+## 5. Kiste, zusammengeschraubt (gemessen 16.11.2026, Maßband)
+
+| Maß | Im Modell | Gemessen | Abweichung |
+|---|---|---|---|
+| Innenbreite zwischen den Seitenbrettern | 400 mm | 397 mm | −3 mm |
+| Innenhöhe zwischen Boden und Deckel | 364 mm | 363 mm | −1 mm |
+| Tiefe | 250 mm | 250 mm ✅ | 0 |
+| Brettdicke | 18 mm | 18 mm ✅ | 0 |
+| Außenbreite | 436 mm | 436 mm ✅ | 0 |
+| Außenhöhe | 400 mm | 400 mm ✅ (nachgemessen, erst 402 abgelesen) | 0 |
+
+Ergebnis: Außenmaße und Brettdicke stimmen mit dem Modell überein. Daraus folgen innen 400 mm Breite und
+364 mm Höhe wie geplant. Die direkt gemessenen Innenmaße (397 / 363 mm) waren mit dem Maßband zu klein abgelesen.
+
+Diagonalen (außen, Maßband): Vorderseite beide ca. 590 mm (Soll 592) ✅, Ober-/Unterseite ca. 500 mm und
+498–499 mm (Soll 503) ✅ – die Kiste ist rechtwinklig.
+
+Alu-Pfosten: 355 mm sägen (1 mm Luft in der Hülse), alle vier gleich lang.

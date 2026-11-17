@@ -42,7 +42,7 @@ for f in DRUCK.glob("*.stl"):          # alte Stücke entfernen, falls sich die 
 platte = M.zerteilen(M.sensorplatte())
 druckteile += [(f"Sensorplatte_Teil{i}", s, 2) for i, s in enumerate(platte, 1)]
 druckteile += [(f"Elektronik_Nest_Teil{i}", n, 2) for i, n in enumerate(M.nest_teile(), 1)]
-druckteile += [(f"Deckel_Teil{i}", d, 2) for i, d in enumerate(M.deckel_haelften(), 1)]
+druckteile += [(f"Deckel_Teil{i}", d, 2) for i, d in enumerate(M.deckel_druck(), 1)]
 import pult as PU  # noqa: E402
 druckteile += [("Pult_Gehaeuse", PU.gehaeuse(), 1), ("Pult_Boden", PU.boden(), 1)]
 druckteile += [(f"Kabelkanal_Teil{i}", Pos(0, 0, 0) * k, 1) for i, k in enumerate(M.kabelkanal_teile(), 1)]
@@ -172,9 +172,13 @@ zeile(f"   4x  Brett (oben, unten, Seiten) {P.BRETT[0]} x {P.BRETT[1]}")
 zeile()
 zeile("=== Elektronik ===")
 weg = E.kabellaenge_max()
-reicht = weg + 30 <= P.SENSORKABEL                     # 3 cm Luft für Abisolieren und Bögen
-zeile(f"{ok(reicht)}Längster Adernweg Sensor -> Nest ca. {weg:.0f} mm, Sensorkabel {P.SENSORKABEL} mm "
-      f"(ohne Verlängerung)")
+kurz = E.zu_kurz()
+zeile(f"{ok(not kurz)}Längster Adernweg Sensor -> Nest ca. {weg:.0f} mm, Sensorkabel {P.SENSORKABEL} mm, "
+      f"Reserve {E.RESERVE} mm" + (f": {len(kurz)} Adern brauchen eine Verlängerung" if kurz else ""))
+for name, laenge in kurz:
+    zeile(f"      {name}: {laenge:.0f} mm")
+zeile(f"{ok(not E.ENGSTELLEN)}Kabelführung: {len(E.adern_wege())} Leitungen, "
+      f"{len(E.ENGSTELLEN)} berühren eine andere")
 wb = E.wago_bedarf()
 for platte in ("unten", "oben"):
     zeile(f"   Wago {platte}: 5V {E._wago_text(platte, '5V')}, GND {E._wago_text(platte, 'GND')}")

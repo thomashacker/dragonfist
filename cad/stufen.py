@@ -46,10 +46,9 @@ def _druckteile_flach(versatz):
     teile.append(_kopie(tb, versatz=(x0, y0 - 80, 0)))
     nest = M.teil(M.elektronik_nest(), "[10] Elektronik-Nest (2x drucken)", "druck_c")
     teile.append(_kopie(nest, versatz=(x0, y0 + 220, 0)))
-    z_deckel = M.deckel_lage()[4]
-    for i, d in enumerate(M.deckel_haelften(), 1):
+    for i, d in enumerate(M.deckel_druck(), 1):
         d = M.teil(d, f"[10] Deckel Teil {i} (2x drucken)", "deckel")
-        teile.append(_kopie(d, versatz=(x0 + (i - 1.5) * 40, y0 + 330, -z_deckel)))
+        teile.append(_kopie(d, versatz=(x0 + (i - 1.5) * 40, y0 + 330, 0)))
     teile.append(_kopie(M.teil(PU.gehaeuse(), "[10] Pult Gehäuse (1x, mit Stützen)", "deckel"),
                         versatz=(x0 + 280, y0, 0)))
     teile.append(_kopie(M.teil(PU.boden(), "[10] Pult Boden (1x)", "druck"), versatz=(x0 + 280, y0 + 230, 0)))

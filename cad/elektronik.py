@@ -12,6 +12,8 @@ Aufbau:
 Platten-Koordinaten (lokal): wie modell.sensorplatte(), z=0 auf dem Brett.
 Welt: unten (x, y, T+z), oben (-x, y, AUSSEN_H-T-z) – die obere Platte ist um Y gedreht.
 """
+import functools
+import itertools
 import json
 import math
 
@@ -144,13 +146,6 @@ def wago_bedarf():
     return erg
 
 
-def _wago_punkt(sd, bus, i, n, z_extra=0):
-    """i-te von n Adern in der Wago-Reihe (seite, bus), lokal."""
-    x0, x1, y0, y1 = M.nest_layout()["wago"][(sd, bus)]
-    return (x0 + 3 + (x1 - x0 - 6) * (i + 0.5) / n, (y0 + y1) / 2,
-            P.PLATTE_DICKE + P.NEST_BODEN + P.WAGO[2] + z_extra)
-
-
 # ---------------------------------------------------------------------------
 # Adern
 # ---------------------------------------------------------------------------
@@ -164,128 +159,283 @@ def _strang(punkte, d, name, farbe):
     return teil(form, name, farbe)
 
 
-def _ader_weg(x, y, ai, lane, ziel):
-    """Weg einer Ader (lokal): Halter -> Einführschlitz -> Kanal -> Nest -> Ziel."""
+# ---------------------------------------------------------------------------
+# Kabelführung: rechtwinklig, jede Aderart auf eigener Höhe, damit sich nichts kreuzt.
+# Wago-Einlässe zeigen nach außen (5V nach hinten, GND nach vorne), Board-Klemmen ebenso.
+# ---------------------------------------------------------------------------
+Z0 = P.PLATTE_DICKE + P.NEST_BODEN
+Z_WAGO = Z0 + P.WAGO[2] / 2                 # Einlass der Wago
+Z_PIN = Z0 + 6                               # Schraubklemme am Board
+Z_BRUECKE = Z0 + 0.9                         # Brücke links <-> rechts, unter allen anderen
+Z_UEBER = {1: Z0 + 11, -1: Z0 + 13}          # über die Wago-Reihen hinweg (Ebene A / B)
+Z_ZULEITUNG, Z_LED, Z_USB, Z_LED_DATEN = Z0 + 15, Z0 + 17, Z0 + 20.5, Z0 + 22.5
+Z_EINWURF = P.PLATTE_DICKE + 9.8             # Ader von oben in den Kanal gedrückt
+Z_DICK = P.PLATTE_DICKE + 9.5                # USB und Netzteil im Kanal B, über den Sensoradern
+Z_FLACH = P.PLATTE_DICKE + 2.5               # USB und Netzteil flach auf der Platte hinter dem Nest
+SPUR = 1.6
+TIEF = 8                                     # Ader steckt so tief im Einlass
+
+
+def _abstand(a0, a1, b0, b1):
+    """Kleinster Abstand zweier Strecken."""
+    u, v, w = [p - q for p, q in zip(a1, a0)], [p - q for p, q in zip(b1, b0)], [p - q for p, q in zip(a0, b0)]
+    a, b, c = sum(x * x for x in u), sum(x * y for x, y in zip(u, v)), sum(x * x for x in v)
+    d, e = sum(x * y for x, y in zip(u, w)), sum(x * y for x, y in zip(v, w))
+    n = a * c - b * b
+    s = min(1, max(0, (b * e - c * d) / n)) if n > 1e-9 else 0
+    t = min(1, max(0, (b * s + e) / c)) if c > 1e-9 else 0
+    s = min(1, max(0, (b * t - d) / a)) if a > 1e-9 else 0
+    return math.dist([p + s * x for p, x in zip(a0, u)], [p + t * x for p, x in zip(b0, v)])
+
+
+class Verlegung:
+    """Legt Adern nacheinander und nimmt je Ader die erste Variante, die keine andere berührt."""
+
+    def __init__(self):
+        self.strecken, self.eng = [], {}
+
+    def _im_weg(self, p0, p1, d):
+        lo = [min(a, b) for a, b in zip(p0, p1)]
+        hi = [max(a, b) for a, b in zip(p0, p1)]
+        for q0, q1, dq, qlo, qhi, wer in self.strecken:
+            m = (d + dq) / 2 - 0.05
+            if any(lo[i] - m > qhi[i] or hi[i] + m < qlo[i] for i in range(3)):
+                continue
+            if _abstand(p0, p1, q0, q1) < m:
+                return wer
+        return None
+
+    def lege(self, name, d, varianten):
+        erste, gruende = None, []
+        for weg in varianten:
+            weg = [p for i, p in enumerate(weg) if i == 0 or math.dist(p, weg[i - 1]) > 0.01]
+            erste = erste or weg
+            wer = next((w for w in (self._im_weg(a, b, d) for a, b in zip(weg, weg[1:])) if w), None)
+            if wer is None:
+                break
+            gruende.append(wer)
+        else:
+            weg = erste
+            self.eng[name] = sorted(set(gruende))
+        for a, b in zip(weg, weg[1:]):
+            self.strecken.append((a, b, d, [min(x, y) for x, y in zip(a, b)], [max(x, y) for x, y in zip(a, b)],
+                                  name))
+        return weg
+
+
+def _raus(bus):
+    return 1 if bus == "5V" else -1
+
+
+def _einlaesse(sd, bus, n):
+    """Aderenden in den nutzbaren Einlässen der Wago-Reihe (seite, bus) für n Adern, von innen nach außen.
+    Zwischen benachbarten Wagos bleiben die Rand-Einlässe für die Kettenbrücke frei."""
+    x0, _, y0, y1 = M.nest_layout()["wago"][(sd, bus)]
+    k, wb, r = M.wago_anzahl(n), P.WAGO[0], _raus(bus)
+    y = (y1 if r > 0 else y0) - r * (P.SPIEL + TIEF)
+    xs = [x0 + P.SPIEL + j * wb + (e + 0.5) * (wb - 0.6) / 5
+          for j in range(k) for e in range(5) if not (e == 4 and j < k - 1) and not (e == 0 and j)]
+    return [(x, y, Z_WAGO) for x in sorted(xs, key=abs)]
+
+
+def _pin_punkt(pin):
+    """Aderende in der Schraubklemme eines Pico-Pins und Richtung nach außen."""
+    x, y, _ = pico_pin_ort(pin)
+    return (x, y, Z_PIN), (-1 if pin <= 20 else 1)
+
+
+def _spuren(y, innen_zuerst=True):
+    """Plätze (y, z) im Kanal an Ebene y, in der Reihenfolge der Vorliebe."""
     r = M.richtung(y)
-    _, _, kabel, _ = M.gehaeuse_y(y, r)
     i0, i1 = M.kanal_y(y)
-    nx0, nx1, ny0, ny1 = M.nest_layout()["aussen"]
-    dx = (ai - 1) * 1.6
-    raus = kabel + r * (P.SPIEL + P.TURM_WAND)
-    cy = (i0 + 2 + ai * 3.2) if r > 0 else (i1 - 2 - ai * 3.2)
-    cz = P.PLATTE_DICKE + 1.5 + (lane % 4) * 2.4
-    xe = min(max(x + dx, nx0 + 18), nx1 - 18)
-    ny = ny0 if r > 0 else ny1
-    # aus dem Kanal heraus schräg über den Nestrand zur Klemme (so liegt eine echte Ader)
-    return [(x + dx, raus, 3), (x + dx, cy, cz), (xe, cy, cz), (ziel[0], ny, ziel[2]), ziel]
+    spalten = [(i1 if r > 0 else i0) - r * (1.2 + SPUR * k) for k in range(7)]
+    if not innen_zuerst:
+        spalten.reverse()
+    return [(cy, P.PLATTE_DICKE + 1 + SPUR * m) for m in range(3) for cy in spalten]
 
 
+def _klemme_weg(ende, raus, r, cy, cz, z_ueber, versatz=0, aus=TIEF + 5):
+    """Vom Platz (cy, cz) im Kanal zur Klemme: (x im Kanal, Punkte). Zeigt der Einlass vom Kanal weg,
+    läuft die Ader auf z_ueber über die Reihe und kommt von der anderen Seite."""
+    x = ende[0]
+    if raus == -r:
+        return x, [(x, cy, cz), (x, cy, ende[2]), ende]
+    xk, yu = x + versatz, ende[1] + raus * aus
+    return xk, [(xk, cy, cz), (xk, cy, z_ueber), (xk, yu, z_ueber), (x, yu, z_ueber), (x, yu, ende[2]), ende]
+
+
+def _sensor_varianten(x, y, ai, ende, raus, flach=False):
+    """Halter -> Einführschlitz -> Platz im Kanal -> Klemme. Adern, die über die Reihe steigen,
+    liegen innen im Kanal: so kreuzt keine Einführung und kein Abgang ihren Aufstieg."""
+    r = M.richtung(y)
+    xs = x + (ai - 1) * 1.6
+    ya = M.gehaeuse_y(y, r)[2] + r * (P.SPIEL + P.TURM_WAND)
+    # erst gerade hinein; wenn kein Platz frei ist, im 8 mm breiten Schlitz seitlich ausweichen
+    for dx in (0, 2.4, -2.4, 3.2, -3.2, 0.8, -0.8):
+        for vs in ((3 * r,) if raus == -r else (3 * r, -3 * r, 5 * r, -5 * r)):
+            for cy, cz in _spuren(y, raus != -r):
+                _, rest = _klemme_weg(ende, raus, r, cy, cz, Z_UEBER[r], vs)
+                for ze in ((cz, Z_EINWURF) if flach else (Z_EINWURF, cz)):
+                    yield [(xs, ya, 3), (xs, ya, ze), (xs + dx, ya, ze), (xs + dx, cy, ze), (xs + dx, cy, cz)] + rest
+
+
+def _abgang_varianten(ende, raus, y, z_ueber, x_ziel, aus=TIEF + 5, y_raus=None, versatz=3):
+    """Klemme -> Platz im Kanal -> im Kanal bis x_ziel (-> durch den Schlitz hinaus bis y_raus)."""
+    r = M.richtung(y)
+    for cy, cz in _spuren(y):
+        _, weg = _klemme_weg(ende, raus, r, cy, cz, z_ueber, versatz * r, aus)
+        yield weg[::-1] + [(x_ziel, cy, cz)] + ([(x_ziel, y_raus, cz)] if y_raus is not None else [])
+
+
+@functools.lru_cache(maxsize=None)
 def _belegung(oben):
-    """Welche Ader in welche Wago-Reihe, mit laufender Nummer je Reihe: {(ebene, x, farbe): ziel}."""
-    leiter = M.nest_leiter()["oben" if oben else "unten"]
-    zaehler = {key: 0 for key in leiter}
-    ziele = {}
-    for ebene, (y, xs) in zip("AB", M.EBENEN):
-        for x in sorted(xs):
-            for farbe, bus in (("rot", "5V"), ("schwarz", "GND")):
-                key = (M.seite(x), bus)
-                ziele[(ebene, x, farbe)] = _wago_punkt(*key, zaehler[key], leiter[key])
-                zaehler[key] += 1
-    return ziele, zaehler, leiter
+    """Welche Sensorader in welchen Einlass: ({(ebene, x, farbe): ziel}, {(seite, bus): freie Einlässe}).
+    Die Sensoradern (feste Länge) bekommen die Einlässe, die ihrem Sensor in x am nächsten liegen, ohne
+    sich zu überkreuzen; den Rest teilen sich Brücke, Zuleitung, Netzteil und LED (eigene Litze)."""
+    ziele, rest = {}, {}
+    for (sd, bus), n in M.nest_leiter()["oben" if oben else "unten"].items():
+        plaetze = _einlaesse(sd, bus, n)
+        sensoren = sorted(((x, e) for e, (_, xs) in zip("AB", M.EBENEN) for x in xs if M.seite(x) == sd),
+                          key=lambda t: abs(t[0]))
+        wahl = min(itertools.combinations(range(len(plaetze)), len(sensoren)),
+                   key=lambda c: sorted((abs(abs(x) - abs(plaetze[i][0])) for (x, _), i in zip(sensoren, c)),
+                                        reverse=True))
+        for (x, ebene), i in zip(sensoren, wahl):
+            ziele[(ebene, x, "rot" if bus == "5V" else "schwarz")] = plaetze[i]
+        rest[(sd, bus)] = [q for i, q in enumerate(plaetze) if i not in wahl]
+    return ziele, rest
 
 
 def _rest_punkt(oben, sd, bus, nr):
-    """Freier Platz nr in einer Wago-Reihe nach den Sensor-Adern (Brücke, Zuleitung, Netzteil, GND)."""
-    _, zaehler, leiter = _belegung(oben)
-    return _wago_punkt(sd, bus, zaehler[(sd, bus)] + nr, leiter[(sd, bus)])
+    """Freier Einlass nr einer Wago-Reihe, von innen gezählt (Brücke, Zuleitung, Netzteil, GND, LED)."""
+    return _belegung(oben)[1][(sd, bus)][nr]
 
 
+ENGSTELLEN = {}
+
+
+@functools.lru_cache(maxsize=None)
 def adern_wege():
     """Alle Leitungen als Wege in Platten-Koordinaten:
     [{"name", "farbe", "d", "oben", "punkte"}]. Daraus entstehen 3D-Modell und 2D-Plan."""
     wege = []
+    ENGSTELLEN.clear()
     pins = {(p["ebene"], p["x_mm"]): p for p in pin_belegung()}
-    for oben in (False, True):
-        art = "Sender" if oben else "Empfänger"
-        farben = ["rot", "schwarz"] if oben else ["rot", "schwarz", "gelb"]
-        ziele, _, _ = _belegung(oben)
-        for ebene, (y, xs) in zip("AB", M.EBENEN):
-            for lane, x in enumerate(sorted(xs)):
-                for ai, farbe in enumerate(farben):
-                    ziel = pico_pin_ort(pins[(ebene, x)]["pin"]) if farbe == "gelb" else ziele[(ebene, x, farbe)]
-                    nr = sensor_nr(xs, x, oben)
-                    wege.append({"name": f"Ader {farbe} {art} {ebene}{nr}", "farbe": farbe, "d": 1.4,
-                                 "oben": oben, "punkte": _ader_weg(x, y, ai, lane, ziel)})
-        # Brücken zwischen linker und rechter Wago-Reihe: neben dem Board vorbei (5V hinten, GND vorne),
-        # knapp über den Nestwänden – nicht über den Pico, sonst wird es unter dem Deckel zu eng
-        _, _, by0, by1 = M.nest_layout()["board"]
-        hz = P.PLATTE_DICKE + P.NEST_BODEN + P.NEST_HOEHE + 2
-        for farbe, bus, yb in (("rot", "5V", by1 + 4), ("schwarz", "GND", by0 - 4)):
-            a, b = _rest_punkt(oben, "links", bus, 0), _rest_punkt(oben, "rechts", bus, 0)
-            wege.append({"name": f"Ader {farbe} Brücke {bus} {'oben' if oben else 'unten'}", "farbe": farbe,
-                         "d": 1.8, "oben": oben,
-                         "punkte": [a, (a[0], a[1], hz), (a[0], yb, hz), (b[0], yb, hz), (b[0], b[1], hz), b]})
-        # Zuleitung zu den Sendern: Wago -> Kanal B -> Hülsenschlitz -> in den Pfosten
-        for ai, farbe in enumerate(("rot", "schwarz")):
-            wege.append({"name": f"Zuleitung Sender {farbe} ({'oben' if oben else 'unten'})", "farbe": farbe,
-                         "d": 1.8, "oben": oben, "punkte": _pfosten_weg(farbe, ai, oben)})
-    # Pico-GND an die linke GND-Reihe unten
-    gnd = pico_pin_ort(PICO_PINS.index("GND") + 1)
-    ziel = _rest_punkt(False, "links", "GND", 3)
-    wege.append({"name": "Ader schwarz Pico-GND", "farbe": "schwarz", "d": 1.4, "oben": False,
-                 "punkte": [gnd, (gnd[0], gnd[1], gnd[2] + 5), (ziel[0], ziel[1], gnd[2] + 5), ziel]})
-    # LED-Streifen auf den vorderen Pfosten: 5V, GND (Wago der Seite) und Daten (Pico) -> Kanal A ->
-    # Schlitz vor dem Pfosten -> innen an der Hülse vorbei nach vorne -> unteres Ende des Streifens
-    ka0, _ = M.kanal_y(M.Y_A)
-    ny0 = M.nest_layout()["aussen"][2]
-    h = P.PFOSTEN + 2 * P.SPIEL + 2 * P.HUELSE_WAND
-    for sd, s in (("links", -1), ("rechts", 1)):
-        px, yv, z0, _ = M.led_lage(s)
-        for ai, (farbe, start) in enumerate((
-                ("rot", _rest_punkt(False, sd, "5V", 3 if sd == "links" else 1)),
-                ("schwarz", _rest_punkt(False, sd, "GND", 4 if sd == "links" else 1)),
-                ("gelb", pico_pin_ort(PICO_PINS.index(f"GP{P.GPIO_LED[sd]}") + 1)))):
-            d = (ai - 1) * 2.0
-            cy, cz = ka0 + 3 + ai * 3, P.PLATTE_DICKE + P.KANAL_INNEN[1] - 2
-            innen = px - s * (h / 2 + 1.5 + ai * 1.6)            # innen neben der Hülse
-            vorne = M.Y_A - h / 2 - 2
-            wege.append({"name": f"Ader {farbe} LED {sd}", "farbe": farbe, "d": 1.6, "oben": False, "punkte": [
-                start, (start[0], ny0, start[2]), (start[0] + d, cy, cz), (px + d, cy, cz),
-                (innen, M.Y_A + h / 2 + 2, 5), (innen, vorne, 5), (px + d, vorne, 5),
-                (px + d, yv - P.LED_STREIFEN[1] - 1, z0 - T + 2)]})
-
-    # USB und Netzteil: Kanal B -> Austritt hinten links -> um die Brettkante in den Kabelkanal außen.
-    # USB läuft darin nach oben ins Pult (Jetson), 5 V kommt von unten (Netzteil am Boden).
-    # Dazu das 19-V-Kabel des Jetson: von unten durch den Kanal hoch und hinten ins Pult.
-    import pult as PU                                          # spät: pult baut auf modell auf
     L = M.nest_layout()
     bx0, _, by0, by1 = L["board"]
-    i0, i1 = M.kanal_y(M.Y_B)
-    ny1 = L["aussen"][3]
-    xa, cy = M.austritt_x(), (i0 + i1) / 2
-    kx, ky = M.kabelkanal_mitte()
-    hinter = M.TIEFE + 12
-    oben = M.AUSSEN_H - T + 6                                   # lokal: knapp über dem oberen Brett
-    px, py, _ = PU.lage_auf_kiste()
-    jx0, jx1, jy0, jy1, jz0, jz1 = PU.jetson_lage()
-    pult_hinten = py + P.PULT_TIEFE + 8
-    jz = M.AUSSEN_H - T + (jz0 + jz1) / 2                       # Höhe der Jetson-Anschlüsse (lokal)
-    for name, farbe, start, dx, dy, nach_oben, ziel_x in (
-            ("USB-Kabel Pico -> Jetson", "usb", (bx0 - 2, (by0 + by1) / 2, P.PLATTE_DICKE + 8), -2.2, -5, True,
-             px + jx0 + 20),
-            ("5-V-Netzteil -> Wago", "netz", _rest_punkt(False, "links", "5V", 2), 2.2, 0, False, None)):
-        weg = [start, (start[0], ny1, start[2]), (start[0], cy, 10), (xa + dx, cy, 10), (xa + dx, hinter, 10),
-               (kx, hinter, 10), (kx, ky + dy, 10)]
-        if nach_oben:
-            weg += [(kx, ky + dy, oben), (kx, pult_hinten, oben), (ziel_x, pult_hinten, oben),
-                    (ziel_x, pult_hinten, jz), (ziel_x, py + jy1 - 4, jz)]
-        else:
-            weg += [(kx, ky + dy, -150)]
-        wege.append({"name": name, "farbe": farbe, "d": 4, "oben": False, "punkte": weg})
-    wege.append({"name": "19-V-Netzteil -> Jetson", "farbe": "netz19", "d": 4.5, "oben": False, "punkte": [
-        (kx, ky + 5, -150), (kx, ky + 5, oben + 6), (kx, pult_hinten + 6, oben + 6), (px + jx1 - 20, pult_hinten + 6,
-                                                                                         oben + 6),
-        (px + jx1 - 20, pult_hinten + 6, jz), (px + jx1 - 20, py + jy1 - 4, jz)]})
+    _, kb1 = M.kanal_y(M.Y_B)
+
+    def dazu(v, name, farbe, d, oben, varianten, schwanz=()):
+        wege.append({"name": name, "farbe": farbe, "d": d, "oben": oben,
+                     "punkte": v.lege(name, d, varianten) + list(schwanz)})
+
+    for oben in (False, True):
+        v, wort = Verlegung(), "oben" if oben else "unten"
+        leiter = M.nest_leiter()[wort]
+        # Kettenbrücken zwischen benachbarten Wagos einer Reihe
+        for (sd, bus), n in leiter.items():
+            x0, _, y0, y1 = L["wago"][(sd, bus)]
+            r, wb = _raus(bus), P.WAGO[0]
+            yi = (y1 if r > 0 else y0) - r * (P.SPIEL + TIEF)
+            ya = yi + r * (TIEF + 3.5)
+            farbe = "rot" if bus == "5V" else "schwarz"
+            for j in range(M.wago_anzahl(n) - 1):
+                xa, xb = (x0 + P.SPIEL + (j + k) * wb + (e + 0.5) * (wb - 0.6) / 5 for k, e in ((0, 4), (1, 0)))
+                dazu(v, f"Ader {farbe} Kette {bus} {sd} {wort} {j + 1}", farbe, 1.8, oben,
+                     [[(xa, yi, Z_WAGO), (xa, ya, Z_WAGO), (xb, ya, Z_WAGO), (xb, yi, Z_WAGO)]])
+        # Brücken zwischen linker und rechter Reihe: tief am Board vorbei (5V hinten, GND vorne)
+        for farbe, bus, yb in (("rot", "5V", by1 + 4.5), ("schwarz", "GND", by0 - 4.5)):
+            a, b = _rest_punkt(oben, "links", bus, 0), _rest_punkt(oben, "rechts", bus, 0)
+            dazu(v, f"Ader {farbe} Brücke {bus} {wort}", farbe, 1.8, oben,
+                 [[a, (a[0], yb, Z_WAGO), (a[0], yb, Z_BRUECKE), (b[0], yb, Z_BRUECKE), (b[0], yb, Z_WAGO), b]])
+        if not oben:
+            # Pico-GND an die linke GND-Reihe
+            gnd, _ = _pin_punkt(PICO_PINS.index("GND") + 1)
+            ziel = _rest_punkt(False, "links", "GND", 3)
+            yq = by0 - 7
+            dazu(v, "Ader schwarz Pico-GND", "schwarz", 1.4, False,
+                 [[gnd, (gnd[0], yq, Z_PIN), (gnd[0], yq, Z_PIN + 2), (ziel[0], yq, Z_PIN + 2), (ziel[0], yq, Z_WAGO),
+                   ziel]])
+            # USB und Netzteil: im Kanal B oben an der Halterseite entlang zum Austritt hinten links,
+            # dann um die Brettkante in den Kabelkanal außen. USB läuft darin nach oben ins Pult.
+            import pult as PU                                  # spät: pult baut auf modell auf
+            xa = M.austritt_x()
+            kx, ky = M.kabelkanal_mitte()
+            hinter = M.TIEFE + 12
+            hoch = M.AUSSEN_H - T + 6                           # lokal: knapp über dem oberen Brett
+            px, py, _ = PU.lage_auf_kiste()
+            jx0, jx1, jy0, jy1, jz0, jz1 = PU.jetson_lage()
+            pult_hinten = py + P.PULT_TIEFE + 8
+            jz = M.AUSSEN_H - T + (jz0 + jz1) / 2               # Höhe der Jetson-Anschlüsse (lokal)
+            netz = _rest_punkt(False, "links", "5V", 2)
+            nx0 = L["aussen"][0]
+            kb0 = M.kanal_y(M.Y_B)[0]
+            ya_n, ya_u = kb0 - 13.6, kb0 - 8.6                  # zwei Bahnen zwischen Nest und Kanal B
+            xe_n, xe_u = nx0 + 3.6, nx0 + 8.6                   # hier wechseln sie in den Kanal
+            yk_n, yk_u = kb1 - 6.8, kb1 - 2.5
+            dazu(v, "5-V-Netzteil -> Wago", "netz", 4, False,
+                 [[netz, (netz[0], ya_n, Z_WAGO), (netz[0], ya_n, Z_FLACH), (xe_n, ya_n, Z_FLACH),
+                   (xe_n, kb0 - 4.6, Z_FLACH), (xe_n, kb0 - 4.6, Z_DICK), (xe_n, yk_n, Z_DICK),
+                   (xa - 2.2, yk_n, Z_DICK)]],
+                 [(xa - 2.2, hinter, 10), (kx, hinter, 10), (kx, ky, 10), (kx, ky, -150)])
+            ux, ym = bx0 - 2, L["ym"]
+            ziel_x = px + jx0 + 20
+            dazu(v, "USB-Kabel Pico -> Jetson", "usb", 4, False,
+                 [[(ux, ym, P.PLATTE_DICKE + 8), (ux, ym, Z_USB), (ux, ya_u, Z_USB), (ux, ya_u, Z_FLACH),
+                   (xe_u, ya_u, Z_FLACH), (xe_u, ya_u, Z_DICK), (xe_u, yk_u, Z_DICK), (xa + 2.2, yk_u, Z_DICK)]],
+                 [(xa + 2.2, hinter, 10), (kx, hinter, 10), (kx, ky - 5, 10), (kx, ky - 5, hoch),
+                  (kx, pult_hinten, hoch), (ziel_x, pult_hinten, hoch), (ziel_x, pult_hinten, jz),
+                  (ziel_x, py + jy1 - 4, jz)])
+            wege.append({"name": "19-V-Netzteil -> Jetson", "farbe": "netz19", "d": 4.5, "oben": False, "punkte": [
+                (kx, ky + 5, -150), (kx, ky + 5, hoch + 6), (kx, pult_hinten + 6, hoch + 6),
+                (px + jx1 - 20, pult_hinten + 6, hoch + 6), (px + jx1 - 20, pult_hinten + 6, jz),
+                (px + jx1 - 20, py + jy1 - 4, jz)]})
+        # Zuleitung zu den Sendern: Wago -> Kanal B -> Hülsenschlitz -> in den Pfosten.
+        # Unten liegt der Pfosten lokal links, oben (gespiegelte Platte) lokal rechts.
+        sd = "rechts" if oben else "links"
+        px, py = next((x, y) for x, y in M.pfosten_xy() if y == M.Y_B and x * (-1 if oben else 1) < 0)
+        for ai, (farbe, bus) in enumerate((("rot", "5V"), ("schwarz", "GND"))):
+            xz = px + (ai - 0.5) * 3
+            dazu(v, f"Zuleitung Sender {farbe} ({wort})", farbe, 1.8, oben,
+                 _abgang_varianten(_rest_punkt(oben, sd, bus, 1), _raus(bus), M.Y_B, Z_ZULEITUNG, xz, y_raus=py),
+                 [(xz, py, P.PLATTE_DICKE + 3)])
+        if not oben:
+            # LED-Streifen auf den vorderen Pfosten: 5V, GND (Wago der Seite) und Daten (Pico) -> Kanal A ->
+            # Schlitz vor dem Pfosten -> innen an der Hülse vorbei nach vorne -> unteres Ende des Streifens
+            h = P.PFOSTEN + 2 * P.SPIEL + 2 * P.HUELSE_WAND
+            for sd, s in (("links", -1), ("rechts", 1)):
+                px, yvorn, z0, _ = M.led_lage(s)
+                daten, draus = _pin_punkt(PICO_PINS.index(f"GP{P.GPIO_LED[sd]}") + 1)
+                for ai, (farbe, ende, raus, zu, aus, vs) in enumerate((
+                        ("rot", _rest_punkt(False, sd, "5V", 3 if sd == "links" else 1), 1, Z_LED, TIEF + 5, 3),
+                        ("schwarz", _rest_punkt(False, sd, "GND", 4 if sd == "links" else 1), -1, Z_LED, TIEF + 5, 3),
+                        ("gelb", daten, draus, Z_LED_DATEN, 8, 1.65))):
+                    xl = px + s * (1 - ai) * 2.0
+                    innen = px - s * (h / 2 + 1.5 + ai * SPUR)         # innen neben der Hülse
+                    vorne = M.Y_A - h / 2 - 2 - ai * 2.4
+                    yq = M.Y_A + h / 2 + 4.6 + ai * SPUR                # zwischen Hülse und Kanalwand
+                    xf = px + (ai - 1) * 2.0
+                    dazu(v, f"Ader {farbe} LED {sd}", farbe, 1.6, False,
+                         _abgang_varianten(ende, raus, M.Y_A, zu, xl, aus, yq, vs),
+                         [(xl, yq, 5), (innen, yq, 5), (innen, vorne, 5), (xf, vorne, 5),
+                          (xf, yvorn - P.LED_STREIFEN[1] - 1, z0 - T + 2)])
+        # Sensoradern
+        art = "Sender" if oben else "Empfänger"
+        ziele = _belegung(oben)[0]
+        for ebene, (y, xs) in zip("AB", M.EBENEN):
+            for x in sorted(xs):
+                nr = sensor_nr(xs, x, oben)
+                adern = []
+                for ai, farbe in enumerate(["rot", "schwarz"] if oben else ["rot", "schwarz", "gelb"]):
+                    if farbe == "gelb":
+                        ende, raus = _pin_punkt(pins[(ebene, x)]["pin"])
+                    else:
+                        ende, raus = ziele[(ebene, x, farbe)], _raus("5V" if farbe == "rot" else "GND")
+                    adern.append((raus != -M.richtung(y), ai, farbe, ende, raus))
+                for _, ai, farbe, ende, raus in sorted(adern):      # erst die direkten, dann die über die Reihe
+                    dazu(v, f"Ader {farbe} {art} {ebene}{nr}", farbe, 1.4, oben,
+                         _sensor_varianten(x, y, ai, ende, raus, farbe == "gelb"))
+        ENGSTELLEN.update(v.eng)
     return wege
 
 
@@ -307,20 +457,6 @@ def adern():
         weg = teil_wege[False] + list(reversed(teil_wege[True]))
         teile.append(_strang(weg, 1.8, f"Zuleitung Sender {farbe} (im Pfosten)", FARBE_3D[farbe]))
     return teile
-
-
-def _pfosten_weg(farbe, ai, oben):
-    """Von der Wago-Reihe durch Kanal B zum hinteren Pfosten links (lokal).
-    Unten liegt der Pfosten lokal links, oben (gespiegelte Platte) lokal rechts."""
-    sd = "rechts" if oben else "links"
-    start = _rest_punkt(oben, sd, "5V" if farbe == "rot" else "GND", 1)
-    px, py = next((x, y) for x, y in M.pfosten_xy() if y == M.Y_B and x * (-1 if oben else 1) < 0)
-    i0, i1 = M.kanal_y(M.Y_B)
-    _, _, _, ny1 = M.nest_layout()["aussen"]
-    cy, cz = i0 + 3 + ai * 3, P.PLATTE_DICKE + 4
-    d = P.PLATTE_DICKE + 3
-    return [start, (start[0], ny1, start[2]), (start[0], cy, cz), (px + (ai - 0.5) * 3, cy, cz),
-            (px + (ai - 0.5) * 3, py, d)]
 
 
 # ---------------------------------------------------------------------------
@@ -370,21 +506,33 @@ def elektronik():
 # ---------------------------------------------------------------------------
 # Kabellängen-Prüfung
 # ---------------------------------------------------------------------------
+RESERVE = 30                                 # Abisolieren (22 mm, doppelt gelegt) und Bögen
+
+
+def sensor_laengen():
+    """{Name: Länge} aller Sensoradern, entlang des verlegten Wegs."""
+    return {w["name"]: sum(math.dist(a, b) for a, b in zip(w["punkte"], w["punkte"][1:]))
+            for w in adern_wege() if w["name"].startswith("Ader") and (" Empfänger " in w["name"]
+                                                                       or " Sender " in w["name"])}
+
+
 def kabellaenge_max():
-    """Längster Adernweg Sensor -> Ziel (lokal, Polylinie)."""
-    pins = {(p["ebene"], p["x_mm"]): p for p in pin_belegung()}
-    laengen = []
-    for oben in (False, True):
-        ziele, _, _ = _belegung(oben)
-        for ebene, (y, xs) in zip("AB", M.EBENEN):
-            for lane, x in enumerate(sorted(xs)):
-                ende = [ziele[(ebene, x, "rot")], ziele[(ebene, x, "schwarz")]]
-                if not oben:
-                    ende.append(pico_pin_ort(pins[(ebene, x)]["pin"]))
-                for ai, ziel in enumerate(ende):
-                    weg = _ader_weg(x, y, ai, lane, ziel)
-                    laengen.append(sum(math.dist(a, b) for a, b in zip(weg, weg[1:])))
-    return max(laengen)
+    return max(sensor_laengen().values())
+
+
+def zu_kurz():
+    """Sensoradern, für die das Sensorkabel samt Reserve nicht reicht, längste zuerst."""
+    return sorted(((n, l) for n, l in sensor_laengen().items() if l + RESERVE > P.SENSORKABEL),
+                  key=lambda x: -x[1])
+
+
+def _laengen_text():
+    kurz = zu_kurz()
+    if not kurz:
+        return f"reichen ohne Verlängerung (längster Weg ca. {kabellaenge_max() / 10:.0f} cm)"
+    namen = ", ".join(f"{n.replace('Ader ', '')} ({l / 10:.0f} cm)" for n, l in kurz)
+    return (f"reichen bis auf {len(kurz)} Adern; diese brauchen eine Verlängerung "
+            f"(Wago 221-412 + Litze): {namen}")
 
 
 # ---------------------------------------------------------------------------
@@ -535,11 +683,15 @@ def verkabelung_md():
   Liegt unter dem Messfenster, keine Faust kommt hin.
 - **Nest oben** (gleiches Druckteil): nur Wagos für die Sender (5V {_wago_text('oben', '5V')}, GND {_wago_text('oben', 'GND')}).
 - **Kabelkanäle** direkt neben den Sensorhaltern, mit Einführschlitz je Halter und Rastlippe.
-  Sensorkabel ({P.SENSORKABEL // 10} cm) reichen ohne Verlängerung (längster Weg ca. {kabellaenge_max() / 10:.0f} cm).
+  Sensorkabel ({P.SENSORKABEL // 10} cm) {_laengen_text()}.
+- **Kabelführung**: rechtwinklig und in festen Höhen, keine Ader berührt eine andere. Wago-Einlässe zeigen nach
+  außen (5V-Reihe nach hinten, GND-Reihe nach vorne). Adern zur abgewandten Reihe laufen über die Wagos hinweg
+  und kommen von der anderen Seite. USB und Netzteil liegen flach hinter dem Nest.
 - **Zuleitung zu den Sendern**: 2 Adern 0,5 mm² durch den hohlen hinteren linken Alu-Pfosten.
 - **Raus** gehen nur USB (Pico → Jetson) und das 5-V-Netzteil, hinten links über die Kante.
-- **Deckel** (gedruckt, 2 Hälften je Platte) liegt auf 4 Säulen über dem Mittelfeld und versteckt Nest, Wagos
-  und Adern; 4 Schrauben {P.SCHRAUBE_SENSOR[0]}×{P.SCHRAUBE_SENSOR[1]} je Deckel – zum Basteln einfach abschrauben.
+- **Deckel** (gedruckt, 2 Hälften je Platte, per Schwalbenschwanz verklebt) liegt auf 4 Säulen über dem Mittelfeld
+  und versteckt Nest, Wagos und Adern; Schürzen vorne und hinten liegen auf den Kabelkanälen auf (blickdicht,
+  stützen den Deckel über die ganze Länge); 4 Schrauben {P.SCHRAUBE_SENSOR[0]}×{P.SCHRAUBE_SENSOR[1]} je Deckel – zum Basteln einfach abschrauben.
 
 ## Adern am Sensor
 | Teil | rot | schwarz | gelb/weiß |
@@ -547,7 +699,7 @@ def verkabelung_md():
 | Empfänger (unten, 3 Adern) | Wago 5V unten | Wago GND unten | Pico laut Tabelle |
 | Sender (oben, 2 Adern) | Wago 5V oben | Wago GND oben | – |
 
-**Keine Verlängerung nötig.** So kommt eine Sensorader in die Wago (oder Schraubklemme):
+So kommt eine Sensorader in die Wago (oder Schraubklemme):
 1. Den kleinen Stiftstecker am Ende mit dem Seitenschneider abknipsen.
 2. **22 mm** abisolieren, die Litze fest verdrillen und **in der Mitte umknicken** (11 mm, doppelt dick) –
    die Sensoradern sind sehr dünn, doppelt gelegt klemmt die Wago sicher.
@@ -567,8 +719,8 @@ Falls doch einmal eine Ader zu kurz ist: mit einer weiteren Wago und einem Stüc
   → ca. {led_strom_a() * P.LED_HELLIGKEIT:.1f} A. Netzteil {P.NETZTEIL_A:.0f} A reicht.
 - **330-Ω-Widerstand in jede Datenleitung** (Pflicht): ein Bein in die Pico-Klemme (GP-Pin), das andere mit der
   gelben LED-Datenader in eine Wago 221-412. Schützt den Pico, wenn die LEDs noch keinen Strom haben.
-- **Kondensator 1000 µF / 10 V** an den Netzteil-Eingang: langes Bein (+) in Wago 5V links, kurzes Bein (−, Streifen
-  auf dem Gehäuse) in Wago GND links. **Polung beachten** – falsch herum kann er platzen.
+- **Kondensator 1000 µF / 10 V** an den Netzteil-Eingang: langes Bein (+) in Wago 5V rechts, kurzes Bein (−, Streifen
+  auf dem Gehäuse) in Wago GND rechts. **Polung beachten** – falsch herum kann er platzen.
 - Flackern die LEDs trotzdem: Pegelwandler (3,3 V → 5 V, z. B. 74AHCT125) in die Datenleitung.
 
 ## Pinbelegung (Empfänger-Signal)

@@ -196,8 +196,8 @@ def _huelse(x, y, loch=False):
 
 
 def pfosten_laenge():
-    # sitzt unten und oben auf der Platte am Hülsengrund auf
-    return INNEN_H - 2 * P.PLATTE_DICKE
+    # steht unten auf der Platte am Hülsengrund, oben bleibt PFOSTEN_LUFT in der Hülse
+    return INNEN_H - 2 * P.PLATTE_DICKE - P.PFOSTEN_LUFT
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ def wago_anzahl(leiter):
 
 
 def seite(x):
-    return "links" if x <= 0 else "rechts"
+    return "links" if x < 0 else "rechts"
 
 
 def nest_leiter():
@@ -269,9 +269,10 @@ def nest_leiter():
     Pico-GND; oben kommt die Zuleitung rechts an (die obere Platte ist gespiegelt)."""
     n = {s: sum(1 for _, xs in EBENEN for x in xs if seite(x) == s) for s in ("links", "rechts")}
     # + je Seite eine Leitung zum LED-Streifen dieser Seite
-    # links zusätzlich der Kondensator 1000 µF am Netzteil-Eingang (+ an 5V, − an GND)
-    unten = {("links", "5V"): n["links"] + 3 + 1 + 1, ("links", "GND"): n["links"] + 4 + 1 + 1,
-             ("rechts", "5V"): n["rechts"] + 1 + 1, ("rechts", "GND"): n["rechts"] + 1 + 1}
+    # rechts zusätzlich der Kondensator 1000 µF (+ an 5V, − an GND): so brauchen beide Seiten gleich viele
+    # Wagos und das Board sitzt mittig -> kurze Wege für die Signaladern
+    unten = {("links", "5V"): n["links"] + 3 + 1, ("links", "GND"): n["links"] + 4 + 1,
+             ("rechts", "5V"): n["rechts"] + 1 + 1 + 1, ("rechts", "GND"): n["rechts"] + 1 + 1 + 1}
     oben = {("links", "5V"): n["links"] + 1, ("links", "GND"): n["links"] + 1,
             ("rechts", "5V"): n["rechts"] + 2, ("rechts", "GND"): n["rechts"] + 2}
     return {"unten": unten, "oben": oben}
@@ -328,7 +329,7 @@ def elektronik_nest():
         form -= quader(tx0, tx1, ty0, ty1, b, b + h + 1)
         # Kabeldurchlässe in den Taschenwänden vorne und hinten
         xm = (tx0 + tx1) / 2
-        form -= quader(xm - (tx1 - tx0) * 0.35, xm + (tx1 - tx0) * 0.35, ty0 - w - 1, ty1 + w + 1, b + 3, b + h + 1)
+        form -= quader(xm - (tx1 - tx0) * 0.47, xm + (tx1 - tx0) * 0.47, ty0 - w - 1, ty1 + w + 1, b + 3, b + h + 1)
     for x, y in L["schrauben"]:
         form -= zyl_z(x, y, -1, b + 1, P.SCHRAUBE_D)
     return form
@@ -517,15 +518,33 @@ def deckel():
     """Ganzer Deckel (wird wie die Platte an den Trennfugen geteilt)."""
     x0, x1, y0, y1, z0 = deckel_lage()
     form = quader(x0, x1, y0, y1, z0, z0 + P.DECKEL_DICKE)
+    zs, s = kanal_hoehe() + P.DECKEL_FUGE, P.DECKEL_SCHUERZE
+    form += quader(x0, x1, y0, y0 + s, zs, z0) + quader(x0, x1, y1 - s, y1, zs, z0)
     for x, y in deckel_saeulen():
         form -= zyl_z(x, y, z0 - 1, z0 + P.DECKEL_DICKE + 1, P.SCHRAUBE_SENSOR[0] + 0.3)
     return form
 
 
 def deckel_haelften():
-    return [deckel() & quader(a - (1 if i == 0 else 0), b + (1 if i == len(leisten_stuecke()) - 1 else 0),
-                              -1000, 1000, -50, 200)
-            for i, (a, b) in enumerate(leisten_stuecke())]
+    """Stücke wie die Sensorplatte geteilt, an jeder Fuge zwei Schwalbenschwänze (verklebt):
+    so trägt der Deckel als ein Stück und braucht nur die Säulen an den Enden."""
+    d = deckel()
+    _, _, y0, y1, z0 = deckel_lage()
+    hoch = Pos(0, 0, z0 + 1)
+    stuecke = leisten_stuecke()
+    teile = [d & quader(a - (1 if i == 0 else 0), b + (1 if i == len(stuecke) - 1 else 0), -1000, 1000, -50, 200)
+             for i, (a, b) in enumerate(stuecke)]
+    for i, (_, t) in enumerate(stuecke[:-1]):
+        for y in (y0 + 35, y1 - 35):
+            teile[i] += d & (hoch * _schwalbe(t, y))
+            teile[i + 1] -= hoch * _schwalbe(t, y, P.SCHWALBE_SPIEL)
+    return teile
+
+
+def deckel_druck():
+    """Hälften in Drucklage: Oberseite auf dem Bett, Schürzen nach oben."""
+    _, _, y0, y1, z0 = deckel_lage()
+    return [Pos(0, y0 + y1, z0 + P.DECKEL_DICKE) * Rot(180, 0, 0) * h for h in deckel_haelften()]
 
 
 
@@ -613,7 +632,7 @@ def rahmen():
     for oben in (False, True):
         for nr, h in enumerate(deckel_haelften(), 1):
             teile.append(teil(platzieren(h, oben), f"Deckel Teil {nr} ({'oben' if oben else 'unten'})", "deckel"))
-    teile += pfosten(T + P.PLATTE_DICKE, AUSSEN_H - T - P.PLATTE_DICKE)
+    teile += pfosten(T + P.PLATTE_DICKE, AUSSEN_H - T - P.PLATTE_DICKE - P.PFOSTEN_LUFT)
     teile += sensoren_und_strahlen(T, AUSSEN_H - T)
     return teile
 

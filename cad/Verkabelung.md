@@ -4,16 +4,20 @@
 
 ## Wo was sitzt
 - **Elektronik-Nest unten** (Druckteil, mittig zwischen A und B): Pico 2 H auf Schraubklemmen-Board,
-  links und rechts davon je eine Reihe Wago 5V und GND (unten: 5V 4× links + 2× rechts, GND 4× links + 2× rechts).
+  links und rechts davon je eine Reihe Wago 5V und GND (unten: 5V 3× links + 3× rechts, GND 3× links + 3× rechts).
   Sensoren links gehen in die linken Wagos, rechts in die rechten; beide Seiten sind gebrückt.
   Liegt unter dem Messfenster, keine Faust kommt hin.
-- **Nest oben** (gleiches Druckteil): nur Wagos für die Sender (5V 2× links + 2× rechts, GND 2× links + 2× rechts).
+- **Nest oben** (gleiches Druckteil): nur Wagos für die Sender (5V 2× links + 3× rechts, GND 2× links + 3× rechts).
 - **Kabelkanäle** direkt neben den Sensorhaltern, mit Einführschlitz je Halter und Rastlippe.
-  Sensorkabel (25 cm) reichen ohne Verlängerung (längster Weg ca. 21 cm).
+  Sensorkabel (25 cm) reichen ohne Verlängerung (längster Weg ca. 22 cm).
+- **Kabelführung**: rechtwinklig und in festen Höhen, keine Ader berührt eine andere. Wago-Einlässe zeigen nach
+  außen (5V-Reihe nach hinten, GND-Reihe nach vorne). Adern zur abgewandten Reihe laufen über die Wagos hinweg
+  und kommen von der anderen Seite. USB und Netzteil liegen flach hinter dem Nest.
 - **Zuleitung zu den Sendern**: 2 Adern 0,5 mm² durch den hohlen hinteren linken Alu-Pfosten.
 - **Raus** gehen nur USB (Pico → Jetson) und das 5-V-Netzteil, hinten links über die Kante.
-- **Deckel** (gedruckt, 2 Hälften je Platte) liegt auf 4 Säulen über dem Mittelfeld und versteckt Nest, Wagos
-  und Adern; 4 Schrauben 2.5×16 je Deckel – zum Basteln einfach abschrauben.
+- **Deckel** (gedruckt, 2 Hälften je Platte, per Schwalbenschwanz verklebt) liegt auf 4 Säulen über dem Mittelfeld
+  und versteckt Nest, Wagos und Adern; Schürzen vorne und hinten liegen auf den Kabelkanälen auf (blickdicht,
+  stützen den Deckel über die ganze Länge); 4 Schrauben 2.5×16 je Deckel – zum Basteln einfach abschrauben.
 
 ## Adern am Sensor
 | Teil | rot | schwarz | gelb/weiß |
@@ -21,7 +25,7 @@
 | Empfänger (unten, 3 Adern) | Wago 5V unten | Wago GND unten | Pico laut Tabelle |
 | Sender (oben, 2 Adern) | Wago 5V oben | Wago GND oben | – |
 
-**Keine Verlängerung nötig.** So kommt eine Sensorader in die Wago (oder Schraubklemme):
+So kommt eine Sensorader in die Wago (oder Schraubklemme):
 1. Den kleinen Stiftstecker am Ende mit dem Seitenschneider abknipsen.
 2. **22 mm** abisolieren, die Litze fest verdrillen und **in der Mitte umknicken** (11 mm, doppelt dick) –
    die Sensoradern sind sehr dünn, doppelt gelegt klemmt die Wago sicher.
@@ -41,8 +45,8 @@ Falls doch einmal eine Ader zu kurz ist: mit einer weiteren Wago und einem Stüc
   → ca. 0.8 A. Netzteil 4 A reicht.
 - **330-Ω-Widerstand in jede Datenleitung** (Pflicht): ein Bein in die Pico-Klemme (GP-Pin), das andere mit der
   gelben LED-Datenader in eine Wago 221-412. Schützt den Pico, wenn die LEDs noch keinen Strom haben.
-- **Kondensator 1000 µF / 10 V** an den Netzteil-Eingang: langes Bein (+) in Wago 5V links, kurzes Bein (−, Streifen
-  auf dem Gehäuse) in Wago GND links. **Polung beachten** – falsch herum kann er platzen.
+- **Kondensator 1000 µF / 10 V** an den Netzteil-Eingang: langes Bein (+) in Wago 5V rechts, kurzes Bein (−, Streifen
+  auf dem Gehäuse) in Wago GND rechts. **Polung beachten** – falsch herum kann er platzen.
 - Flackern die LEDs trotzdem: Pegelwandler (3,3 V → 5 V, z. B. 74AHCT125) in die Datenleitung.
 
 ## Pinbelegung (Empfänger-Signal)

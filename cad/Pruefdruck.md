@@ -14,11 +14,11 @@ Passt ein Stück nicht: messen, Wert in `parameter.py` ändern (Zeilen mit `# ME
 | `3_Schwalbe_rechts.stl` | 1× | 25 × 16 × 4 mm | siehe 3_Schwalbe_links |
 | `4_Knopf_Stueck.stl` | 1× | 44 × 61 × 32 mm | Arcade-Knopf einschrauben (Loch 28 mm). Unter der Platte messen: ist Knopf + Mikroschalter höchstens 33 mm tief? |
 | `5_Kabelkanal_Stueck.stl` | 1× | 16 × 24 × 40 mm | USB-Kabel, 5-V-Kabel und 19-V-Kabel einlegen: passen alle drei, halten die Rastlippen sie fest? |
-| `6_Nest_Teil1_Wagos.stl` | 1× | 146 × 59 × 10 mm | Endteil (später 2× gebraucht). Wago 221-415 einlegen: liegen sie ohne Klemmen in den Taschen, kommt man an die Einlässe und Hebel? |
-| `6_Nest_Teil2_Board.stl` | 1× | 151 × 59 × 10 mm | Endteil (später 2× gebraucht). Breakout-Board mit Pico und Wagos einlegen: passt alles, lassen sich beide Nest-Teile am Schwalbenschwanz zusammenstecken (später verkleben)? |
+| `6_Nest_Teil1_Wagos.stl` | 1× | 116 × 59 × 10 mm | Endteil (später 2× gebraucht). Wago 221-415 einlegen: liegen sie ohne Klemmen in den Taschen, kommt man an die Einlässe und Hebel? |
+| `6_Nest_Teil2_Board.stl` | 1× | 181 × 59 × 10 mm | Endteil (später 2× gebraucht). Breakout-Board mit Pico und Wagos einlegen: passt alles, lassen sich beide Nest-Teile am Schwalbenschwanz zusammenstecken (später verkleben)? |
 
 ## Reihenfolge
 1. Sensoren (Adafruit) messen: Gehäuse, LED-Kuppe, Befestigungsloch → `parameter.py` → neu bauen → **dann** drucken.
 2. Prüfteile drucken, mit den echten Teilen testen, Maße anpassen.
 3. Display, Jetson-Lochabstand, Boxenflansch nachmessen (stehen ebenfalls mit `# MESSEN` in `parameter.py`).
-4. Erst dann die Endteile aus `ausgabe/druck/` drucken (ca. 753 g).
+4. Erst dann die Endteile aus `ausgabe/druck/` drucken (ca. 772 g).
