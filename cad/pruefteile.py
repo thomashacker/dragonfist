@@ -6,6 +6,8 @@ nach ausgabe/pruefdruck/).
 Jeder Ausschnitt ist mit derselben Funktion gebaut wie das Endteil: passt der Prüfdruck,
 passt auch das Endteil. Passt er nicht, Maß in parameter.py ändern und neu bauen.
 """
+from build123d import Cylinder, Pos, Rot, extrude
+
 import modell as M
 import parameter as P
 import pult as PU
@@ -45,6 +47,19 @@ def kabelkanal_stueck():
     return M.kabelkanal() & quader(-2000, 2000, -2000, 2000, 0, 40)
 
 
+LOGO_TEST_D = 50
+
+
+def logo_gravur(d=LOGO_TEST_D):
+    """Runde Scheibe in Deckeldicke mit dem gravierten Logo, wie der Deckel kopfüber in Drucklage."""
+    import schilder
+    t = P.DECKEL_DICKE
+    form = Pos(0, 0, t / 2) * Cylinder(d / 2 + 4, t)
+    for f in schilder.logo_flaechen(d):
+        form -= Pos(0, 0, t - P.DECKEL_GRAVUR) * extrude(f, amount=P.DECKEL_GRAVUR + 1, dir=(0, 0, 1))
+    return Pos(0, 0, t) * Rot(180, 0, 0) * form
+
+
 def pruefteile():
     """(Dateiname, Form, Anzahl, was prüfen)"""
     links, rechts = schwalben_fuge()
@@ -70,4 +85,8 @@ def pruefteile():
         ("6_Nest_Teil2_Board", M.nest_teile()[1], 1,
          "Endteil (später 2× gebraucht). Breakout-Board mit Pico und Wagos einlegen: passt alles, "
          "lassen sich beide Nest-Teile am Schwalbenschwanz zusammenstecken (später verkleben)?"),
+        ("7_Logo_Gravur", logo_gravur(), 1,
+         f"Logo-Gravur des Deckels, verkleinert auf Ø {LOGO_TEST_D} mm (Deckel: Ø {P.DECKEL_LOGO_D}). Liegt kopfüber: "
+         f"bis {P.DECKEL_GRAVUR} mm schwarz, dann Filamentwechsel auf Weiß. Sind die weißen Linien sauber und "
+         "geschlossen, deckt Weiß über Schwarz?"),
     ]

@@ -1,6 +1,6 @@
 # Prüfdruck – zuerst drucken, dann erst alles andere
 
-*Automatisch erzeugt von `build.py`. Dateien: `ausgabe/pruefdruck/`. Zusammen ca. 59 g PLA oder PETG,
+*Automatisch erzeugt von `build.py`. Dateien: `ausgabe/pruefdruck/`. Zusammen ca. 61 g PLA oder PETG,
 gleiche Einstellungen wie später für die Endteile (0,2 mm Schicht, 3 Wände, 20 % Füllung, ohne Stützen).*
 
 Jedes Stück ist ein Ausschnitt aus dem echten Teil – gleiche Maße, gleiche Passungen.
@@ -16,6 +16,7 @@ Passt ein Stück nicht: messen, Wert in `parameter.py` ändern (Zeilen mit `# ME
 | `5_Kabelkanal_Stueck.stl` | 1× | 16 × 24 × 40 mm | USB-Kabel, 5-V-Kabel und 19-V-Kabel einlegen: passen alle drei, halten die Rastlippen sie fest? |
 | `6_Nest_Teil1_Wagos.stl` | 1× | 116 × 59 × 10 mm | Endteil (später 2× gebraucht). Wago 221-415 einlegen: liegen sie ohne Klemmen in den Taschen, kommt man an die Einlässe und Hebel? |
 | `6_Nest_Teil2_Board.stl` | 1× | 181 × 59 × 10 mm | Endteil (später 2× gebraucht). Breakout-Board mit Pico und Wagos einlegen: passt alles, lassen sich beide Nest-Teile am Schwalbenschwanz zusammenstecken (später verkleben)? |
+| `7_Logo_Gravur.stl` | 1× | 58 × 58 × 2 mm | Logo-Gravur des Deckels, verkleinert auf Ø 50 mm (Deckel: Ø 96). Liegt kopfüber: bis 0.8 mm schwarz, dann Filamentwechsel auf Weiß. Sind die weißen Linien sauber und geschlossen, deckt Weiß über Schwarz? |
 
 ## Reihenfolge
 1. Sensoren (Adafruit) messen: Gehäuse, LED-Kuppe, Befestigungsloch → `parameter.py` → neu bauen → **dann** drucken.

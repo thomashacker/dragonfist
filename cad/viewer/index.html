@@ -327,7 +327,7 @@ async function druckReihe(quellen, titel, farbe, versatz) {
   $('stufen').append(zeile);
   gruppen.push({ obj: reihe, box: cb, extra: true });
 }
-await druckReihe([['pruefdruck', /^[1236]_/]], 'Phase 1: Prüfdruck Käfig', 0xd8833b, 0.25);
+await druckReihe([['pruefdruck', /^[12367]_/]], 'Phase 1: Prüfdruck Käfig', 0xd8833b, 0.25);
 await druckReihe([['druck', /^(Sensorplatte|Elektronik_Nest|Deckel)_/]], 'Phase 2: Käfig drucken', 0x3f7fd0, 0.55);
 await druckReihe([['pruefdruck', /^[45]_/], ['druck', /^(Pult|Kabelkanal|Schild)_/]], 'Bonus: Pult, Schilder, Kabelkanal', 0x8a8a8a, 0.85);
 fetch('../ausgabe/stufen/1_Rahmen.glb', { method: 'HEAD', cache: 'no-store' }).then(r => {
