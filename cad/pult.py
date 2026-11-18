@@ -1,6 +1,6 @@
 """
 Bedienpult oben auf der Kiste: keilförmiges Druckgehäuse mit 7"-Display im Wire-Mod-Rahmen
-(20° nach hinten geneigt, zum Kind), schräger Knopfleiste mit Arcade-Knöpfen davor, Jetson Orin Nano
+(20° nach hinten geneigt, zum Kind), flachem Bedienfeld davor (Joystick links, Arcade-Knöpfe rechts), Jetson Orin Nano
 auf der Bodenplatte. Der USB-Lautsprecher steht außen rechts neben dem Pult auf der Kiste (nichts zu drucken).
 
 Pult-Koordinaten: x quer (Mitte 0), y nach hinten (Vorderkante 0), z nach oben (Brett-Oberseite 0).
@@ -8,9 +8,10 @@ Druckteile: Gehäuse (mit Stützen drucken, Knopfleiste ist flach geneigt) und B
 """
 import math
 
-from build123d import Box, Plane, Polygon, Pos, extrude, offset
+from build123d import Box, Plane, Polygon, Pos, Sphere, extrude, offset
 
 import modell as M
+import schilder as SCH
 import parameter as P
 from modell import quader, teil, zyl_z
 
@@ -44,8 +45,12 @@ KNOPF_FLAECHE, DISPLAY_FLAECHE = 1, 2
 
 
 def knopf_x():
-    n = len(P.KNOEPFE)
-    return [(i - (n - 1) / 2) * P.KNOPF_ABSTAND for i in range(n)]
+    return list(P.KNOPF_X)
+
+
+def _joystick_loecher():
+    lx, ly = P.JOYSTICK_LOECHER
+    return [(P.JOYSTICK_X + sx * lx / 2, sy * ly / 2) for sx in (-1, 1) for sy in (-1, 1)]
 
 
 def jetson_lage():
@@ -82,6 +87,10 @@ def gehaeuse():
     # Knopflöcher
     for x in knopf_x():
         form -= _auf_flaeche(KNOPF_FLAECHE, zyl_z(0, 0, -20, 20, P.KNOPF_LOCH), x=x)
+    # Joystick: Schaftloch und 4 Löcher für die Grundplatte (M4, von oben gesenkt)
+    form -= _auf_flaeche(KNOPF_FLAECHE, zyl_z(0, 0, -20, 20, P.JOYSTICK_LOCH), x=P.JOYSTICK_X)
+    for x, e in _joystick_loecher():
+        form -= _auf_flaeche(KNOPF_FLAECHE, zyl_z(0, 0, -20, 20, 4.4), x=x, entlang=e)
     # Lüftungsschlitze oben über dem Jetson
     jx0, jx1, jy0, jy1, _, _ = jetson_lage()
     z_oben = max(z for _, z in PROFIL)
@@ -99,7 +108,7 @@ def gehaeuse():
 
 def _eckbloecke():
     # vorne hinter den Knopfkörpern, hinten vor der Rückwand
-    return [(s * (W / 2 - WAND - 6), y) for s in (-1, 1) for y in (75, D - WAND - 22)]
+    return [(s * (W / 2 - WAND - 6), y) for s in (-1, 1) for y in (118, D - WAND - 22)]
 
 
 def boden():
@@ -139,8 +148,17 @@ def einbauteile():
         knopf = (_auf_flaeche(KNOPF_FLAECHE, zyl_z(0, 0, 0, 8, 30), x=x) +
                  _auf_flaeche(KNOPF_FLAECHE, zyl_z(0, 0, -WAND - P.KNOPF_TIEFE, 0, 24), x=x))
         teile.append(teil(knopf, f"Arcade-Knopf {name}", farbe))
+    pb, pt, pd = P.JOYSTICK_PLATTE
+    tief, schaft, k = P.JOYSTICK_TIEFE, P.JOYSTICK_SCHAFT, P.JOYSTICK_KUGEL
+    stick = (_auf_flaeche(KNOPF_FLAECHE, Box(pb, pt, pd), x=P.JOYSTICK_X, normal=-WAND - pd / 2) +
+             _auf_flaeche(KNOPF_FLAECHE, Box(50, 50, tief - pd), x=P.JOYSTICK_X, normal=-WAND - pd - (tief - pd) / 2) +
+             _auf_flaeche(KNOPF_FLAECHE, zyl_z(0, 0, 0, schaft, 8), x=P.JOYSTICK_X))
+    teile.append(teil(stick, "Joystick", "knopf"))
+    teile.append(teil(_auf_flaeche(KNOPF_FLAECHE, Pos(0, 0, schaft + k / 2) * Sphere(k / 2), x=P.JOYSTICK_X),
+                      "Joystick Kugel", "knopf_start"))
     jy0 = jetson_lage()[2]
-    teile.append(teil(quader(-35, 35, jy0 - 34, jy0 - 4, WAND, WAND + 8), "USB-Encoder (Knöpfe -> Jetson)", "platine"))
+    teile.append(teil(quader(10, 80, jy0 - 34, jy0 - 4, WAND, WAND + 8), "USB-Encoder (Knöpfe + Joystick -> Jetson)",
+                      "platine"))
     return teile
 
 
@@ -152,5 +170,5 @@ def lage_auf_kiste():
 def pult_teile():
     dx, dy, dz = lage_auf_kiste()
     teile = [teil(gehaeuse(), "Pult Gehäuse (Druckteil)", "deckel"),
-             teil(boden(), "Pult Boden (Druckteil)", "druck")] + einbauteile()
-    return M.verschieben(teile, dx, dy, dz)
+             teil(boden(), "Pult Boden (Druckteil)", "druck")] + einbauteile() + SCH.am_pult()
+    return M.verschieben(teile, dx, dy, dz) + SCH.an_kiste(M.AUSSEN_W)

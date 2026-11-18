@@ -95,6 +95,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 const STUFEN = [
   ['1_Rahmen', 'Holzkiste'],
@@ -243,7 +244,7 @@ $('zoom').onclick = () => {
 };
 $('alle').onclick = () => {
   modell.traverse(o => { if (o.userData.teil) o.visible = true; });
-  for (const g of gruppen) { g.obj.visible = true; g.box.checked = true; }
+  for (const g of gruppen) { g.obj.visible = !g.extra; g.box.checked = !g.extra; }
 };
 document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => blick(b.dataset.v));
 
@@ -287,6 +288,48 @@ for (const s of geladen) {
 box.setFromObject(modell);
 box.getCenter(mitte);
 box.getSize(groesse);
+
+const listen = {};
+async function stlListe(ordner) {
+  if (!listen[ordner]) {
+    const html = await fetch(`../ausgabe/${ordner}/`, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
+    listen[ordner] = [...html.matchAll(/href="([^"]+\.stl)"/g)].map(m => decodeURIComponent(m[1]));
+  }
+  return listen[ordner];
+}
+
+async function druckReihe(quellen, titel, farbe, versatz) {
+  const namen = [];
+  for (const [ordner, muster] of quellen)
+    for (const n of await stlListe(ordner)) if (muster.test(n)) namen.push([ordner, n]);
+  if (!namen.length) return;
+  const reihe = new THREE.Group(), stl = new STLLoader();
+  let x = 0;
+  for (const [ordner, n] of namen) {
+    const g = await stl.loadAsync(`../ausgabe/${ordner}/${encodeURIComponent(n)}?t=${Date.now()}`);
+    g.computeBoundingBox();
+    const b = g.boundingBox, m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: farbe, roughness: 0.75 }));
+    m.scale.setScalar(0.001);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x - b.min.x / 1000, -b.min.z / 1000, b.max.y / 1000);
+    m.userData = { teil: true, name: n.replace('.stl', ''), stufe: titel };
+    x += (b.max.x - b.min.x) / 1000 + 0.02;
+    reihe.add(m);
+  }
+  reihe.position.set(box.min.x, box.min.y, box.max.z + versatz);
+  reihe.visible = false;
+  modell.add(reihe);
+  const zeile = document.createElement('label');
+  zeile.className = 'row';
+  zeile.innerHTML = `<input type="checkbox"> ${titel} <span class="n">${namen.length}</span>`;
+  const cb = zeile.firstElementChild;
+  cb.onchange = () => { reihe.visible = cb.checked; if (wahl && !sichtbar(wahl)) waehle(null); };
+  $('stufen').append(zeile);
+  gruppen.push({ obj: reihe, box: cb, extra: true });
+}
+await druckReihe([['pruefdruck', /^[1236]_/]], 'Phase 1: Prüfdruck Käfig', 0xd8833b, 0.25);
+await druckReihe([['druck', /^(Sensorplatte|Elektronik_Nest|Deckel)_/]], 'Phase 2: Käfig drucken', 0x3f7fd0, 0.55);
+await druckReihe([['pruefdruck', /^[45]_/], ['druck', /^(Pult|Kabelkanal|Schild)_/]], 'Bonus: Pult, Schilder, Kabelkanal', 0x8a8a8a, 0.85);
 fetch('../ausgabe/stufen/1_Rahmen.glb', { method: 'HEAD', cache: 'no-store' }).then(r => {
   const d = r.headers.get('last-modified');
   if (d) $('stand').textContent = new Date(d).toLocaleDateString('de-DE');

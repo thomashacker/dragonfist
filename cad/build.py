@@ -45,6 +45,8 @@ druckteile += [(f"Elektronik_Nest_Teil{i}", n, 2) for i, n in enumerate(M.nest_t
 druckteile += [(f"Deckel_Teil{i}", d, 2) for i, d in enumerate(M.deckel_druck(), 1)]
 import pult as PU  # noqa: E402
 druckteile += [("Pult_Gehaeuse", PU.gehaeuse(), 1), ("Pult_Boden", PU.boden(), 1)]
+import schilder as SCH  # noqa: E402
+druckteile += [(n, f, 1) for n, f in SCH.druckteile()]
 druckteile += [(f"Kabelkanal_Teil{i}", Pos(0, 0, 0) * k, 1) for i, k in enumerate(M.kabelkanal_teile(), 1)]
 druckteile.append(("Prototyp_Testblock", M.testblock(), 2))
 
@@ -280,7 +282,7 @@ Strom: max. {E.led_strom_a():.1f} A, Firmware begrenzt auf {P.LED_HELLIGKEIT:.0%
 | {haken('amazon')}7"-HDMI-Display ELECROW 1024×600, Touch, USB-Strom (Maß im Modell {P.DISPLAY[0]}×{P.DISPLAY[1]} mm – nachmessen) | 1 | 47 € | Amazon |
 | {haken('amazon')}Kabel DisplayPort → HDMI, 0,9 m (Amazon Basics, Jetson hat nur DisplayPort) | 1 | 9 € | Amazon |
 | {haken('amazon')}USB-Hub 4 Port (Sabrent HB-UM43) – Display + Pico direkt an den Jetson, Encoder + Lautsprecher an den Hub | 1 | 9 € | Amazon |
-| {haken('amazon')}Arcade-Knöpfe 30 mm + **USB-Encoder** (Set, lötfrei, Steckkabel) – {len(P.KNOEPFE)} Knöpfe: {", ".join(P.KNOEPFE)} | 1 Set | 25 € | Amazon: EG STARTS USB-Encoder + Joystick + 10 LED-Knöpfe 5 V (Joystick bleibt übrig) |
+| {haken('amazon')}Arcade-Knöpfe 30 mm + **USB-Encoder** (Set, lötfrei, Steckkabel) – {len(P.KNOEPFE)} Knöpfe: {", ".join(P.KNOEPFE)}, dazu der Joystick aus dem Set | 1 Set | 25 € | Amazon: EG STARTS USB-Encoder + Joystick + 10 LED-Knöpfe 5 V (Joystick bleibt übrig) |
 | {haken('amazon')}USB-Lautsprecher HuaLiSiJi 3 W ({P.LAUTSPRECHER[0]}×{P.LAUTSPRECHER[1]}×{P.LAUTSPRECHER[2]} mm, eigene USB-Soundkarte) – steht **außen** rechts neben dem Pult, 2 Schrauben 2,5×16 durch die Ösen ins Brett | 1 | 17 € | Amazon |
 | {haken('amazon')}Schrauben M3×10 (Gehäuse an Boden) + M2.5×6 (Jetson) | 4 + 4 | 3 € | Baumarkt |
 | ✅ Jetson **Orin** Nano Developer Kit (P3766 geprüft) | vorhanden | – | – |

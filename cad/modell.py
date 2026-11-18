@@ -522,6 +522,10 @@ def deckel():
     form += quader(x0, x1, y0, y0 + s, zs, z0) + quader(x0, x1, y1 - s, y1, zs, z0)
     for x, y in deckel_saeulen():
         form -= zyl_z(x, y, z0 - 1, z0 + P.DECKEL_DICKE + 1, P.SCHRAUBE_SENSOR[0] + 0.3)
+    import schilder                                            # spät: schilder baut auf modell auf
+    oben = z0 + P.DECKEL_DICKE - P.DECKEL_GRAVUR
+    for f in schilder.logo_flaechen(P.DECKEL_LOGO_D):
+        form -= Pos(0, (y0 + y1) / 2, oben) * extrude(f, amount=P.DECKEL_GRAVUR + 1, dir=(0, 0, 1))
     return form
 
 
@@ -531,7 +535,7 @@ def deckel_haelften():
     d = deckel()
     _, _, y0, y1, z0 = deckel_lage()
     hoch = Pos(0, 0, z0 + 1)
-    stuecke = leisten_stuecke()
+    stuecke = [(LEISTE_X0, P.DECKEL_TEILUNG), (P.DECKEL_TEILUNG, LEISTE_X1)]
     teile = [d & quader(a - (1 if i == 0 else 0), b + (1 if i == len(stuecke) - 1 else 0), -1000, 1000, -50, 200)
              for i, (a, b) in enumerate(stuecke)]
     for i, (_, t) in enumerate(stuecke[:-1]):

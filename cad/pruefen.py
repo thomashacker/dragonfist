@@ -18,6 +18,7 @@ ERLAUBT = [
     ("Sensorplatte Teil 1", "Sensorplatte Teil 2"),     # Schwalbenschwanz
     ("Deckel Teil 1", "Deckel Teil 2"),
     ("Pult Boden", "Pult Gehäuse"),
+    ("Schild", "Pult Gehäuse"), ("Schild", "Seitenbrett"),
 ]
 
 

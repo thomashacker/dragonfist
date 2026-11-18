@@ -163,17 +163,41 @@ KABELKANAL_RAND_HINTEN = 6    # Abstand zur hinteren Brettkante
 PULT_BREITE = 210             # passt auf ein 220er-Druckbett
 PULT_TIEFE = 200
 PULT_WAND = 3
-# Seitenprofil (y nach hinten, z nach oben): vorne Knopfleiste ~15°, dahinter Display ~70° steil
-PULT_PROFIL = [(0, 0), (0, 40), (60, 56), (100, 166), (200, 166), (200, 0)]
+# Seitenprofil (y nach hinten, z nach oben): vorne Bedienfeld ~8° (Joystick braucht 60 mm darunter),
+# dahinter Display ~70° steil
+PULT_PROFIL = [(0, 0), (0, 72), (105, 87), (145, 197), (200, 197), (200, 0)]
 DISPLAY = (165, 100, 20)      # MESSEN  7" HDMI-Display (z. B. Waveshare 7inch HDMI LCD (C)): B, H, Tiefe
 DISPLAY_FENSTER = (156, 88)   # MESSEN  sichtbare Fläche
 JETSON = (103, 91, 35)        # MESSEN  Jetson Orin Nano Developer Kit mit Kühler: L, B, H
 JETSON_LOECHER = (86, 58)     # MESSEN  Lochabstand der Befestigungslöcher (M2.5)
 LAUTSPRECHER = (100, 25, 45)  # MESSEN  HuaLiSiJi Mini-USB-Soundbar: B, T, H – steht AUSSEN rechts neben dem Pult
 KNOPF_LOCH = 28               # Arcade-Knopf 30 mm braucht 28-mm-Bohrung
-KNOEPFE = ["Zurück", "◀", "START", "▶", "OK"]   # von links nach rechts; START in der Mitte
-KNOPF_ABSTAND = 40
+KNOEPFE = ["OK", "Zurück", "START"]   # rechts neben dem Joystick, von links nach rechts
+KNOPF_X = (0, 38, 76)        # Mitte der Knöpfe quer zum Pult
+KNOPF_ABSTAND = 40           # nur für das Prüfdruck-Stück
 KNOPF_TIEFE = 33              # Einbautiefe unter der Platte (Knopf + Mikroschalter)
+# Joystick aus dem Arcade-Set, links auf dem Bedienfeld (linke Hand), Grundplatte von unten verschraubt
+JOYSTICK_X = -60
+JOYSTICK_PLATTE = (65, 97, 1.6)   # MESSEN  Grundplatte quer × entlang × dick (Sanwa-Bauform)
+JOYSTICK_LOECHER = (40, 84)  # MESSEN  Abstand der 4 Befestigungslöcher quer × entlang
+JOYSTICK_TIEFE = 60          # MESSEN  unter der Platte bis Unterkante Mikroschalter/Stecker
+JOYSTICK_LOCH = 24           # Schaftloch (Staubscheibe deckt bis 30 mm ab)
+JOYSTICK_SCHAFT = 32         # MESSEN  Schaft über der Platte bis Unterkante Kugel
+JOYSTICK_KUGEL = 35
+
+# Schilder (schilder.py): Boden weiß, alles darüber schwarz (Filamentwechsel bei SCHILD_BODEN)
+SCHILD_BODEN = 2
+SCHILD_TEXT = 1.2             # Schrift steht so weit über dem Boden
+SCHILD_DRAGONFIST = (186, 26, 18)    # Breite, Höhe, Schrifthöhe max – vorne am Pult
+SCHILD_DRAGONFIST_Z = 36
+SCHILD_DRAGONFIST_SCHRIFT = "C:/Windows/Fonts/impact.ttf"
+SCHILD_SCHMUHL = (100, 16, 10)       # Instrument Serif, rechte Kistenseite unten vorne in der Ecke
+SCHILD_SCHMUHL_RAND = 15     # Abstand zur Vorder- und Unterkante
+# VietVoDao-Logo in beide Deckel graviert (Logo-Ebenen aus logo/). Deckel kopfüber drucken: die ersten
+# DECKEL_GRAVUR mm schwarz, danach weiß -> schwarze Fläche mit weißem Logo
+DECKEL_LOGO_D = 96
+DECKEL_GRAVUR = 0.8
+DECKEL_TEILUNG = -53          # Fuge der Deckelhälften links neben dem Logo (Teil 2 muss aufs 256er-Bett)
 
 # ---------------------------------------------------------------------------
 # Stativ und Aufhängung
