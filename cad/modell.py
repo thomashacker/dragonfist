@@ -103,7 +103,7 @@ def teil(form, name, farbe):
 # ---------------------------------------------------------------------------
 TURM_X = P.SENSOR_BREITE + 2 * (P.SPIEL + P.TURM_WAND)
 SAEULE = P.LED_DURCHMESSER + P.SPIEL + 2 * P.TURM_WAND
-TASCHE_H = P.SENSOR_HOEHE + P.SPIEL
+TASCHE_H = math.ceil((P.SENSOR_HOEHE + P.SPIEL) / P.SCHICHT - 1e-6) * P.SCHICHT
 
 
 def richtung(y):
@@ -123,8 +123,14 @@ def _sensor_loch(x, y, r):
     s = P.SPIEL
     y0, y1, _, loch = gehaeuse_y(y, r)
     led_oben = TASCHE_H + P.LED_UEBERSTAND
-    return (
-        quader(x - P.SENSOR_BREITE / 2 - s, x + P.SENSOR_BREITE / 2 + s, y0 - s, y1 + s, -1, TASCHE_H)
+    bx, z = P.SENSOR_BREITE / 2 + s, TASCHE_H - 0.5
+    # Löcher in der Taschendecke ohne Stützen: 1. Schicht Schlitz quer (Brücke von Wand zu Wand),
+    # 2. Schicht Quadrat (Brücke über den Schlitz), darüber rund
+    stufen = [quader(x - a, x + a, yy - d / 2, yy + d / 2, z, TASCHE_H + n * P.SCHICHT)
+              for yy, d in ((y, P.LED_DURCHMESSER + s), (loch, P.SENSOR_SCHRAUBE_D))
+              for a, n in ((bx, 1), (d / 2, 2))]
+    return sum(stufen[1:], stufen[0]) + (
+        quader(x - bx, x + bx, y0 - s, y1 + s, -1, TASCHE_H)
         + zyl_z(x, y, TASCHE_H - 0.5, led_oben, P.LED_DURCHMESSER + s)
         + zyl_z(x, y, led_oben - 0.5, LEISTE_DICKE + 1, P.TUNNEL_DURCHMESSER)
         + zyl_z(x, loch, TASCHE_H - 0.5, TASCHE_H + P.TURM_WAND + 1, P.SENSOR_SCHRAUBE_D)
@@ -177,12 +183,12 @@ def rippen_x():
 
 def pfosten_xy():
     """Pfosten an den Enden der beiden Streifen, direkt an den Seitenbrettern."""
-    h = P.PFOSTEN + 2 * P.SPIEL + 2 * P.HUELSE_WAND
+    h = P.PFOSTEN + 2 * P.HUELSE_SPIEL + 2 * P.HUELSE_WAND
     return [(s * (LEISTE_X1 - h / 2), y) for s in (-1, 1) for y in (Y_A, Y_B)]
 
 
 def _huelse(x, y, loch=False):
-    p = P.PFOSTEN + 2 * P.SPIEL
+    p = P.PFOSTEN + 2 * P.HUELSE_SPIEL
     h = p + 2 * P.HUELSE_WAND
     if loch:
         d = P.PLATTE_DICKE
@@ -219,7 +225,7 @@ def kanal_hoehe():
 def austritt_x():
     """Lücke links hinten zwischen Pfostenhülse und äußerstem B-Halter: hier gehen
     USB- und Netzteilkabel über die Hinterkante raus (Wert für die linke Seite)."""
-    h = P.PFOSTEN + 2 * P.SPIEL + 2 * P.HUELSE_WAND
+    h = P.PFOSTEN + 2 * P.HUELSE_SPIEL + 2 * P.HUELSE_WAND
     huelse_innen = LEISTE_X0 + h
     halter_aussen = min(P.STRAHLEN_B) - TURM_X / 2
     if halter_aussen - huelse_innen < 9:

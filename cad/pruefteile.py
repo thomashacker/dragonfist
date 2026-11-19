@@ -18,6 +18,12 @@ def _ausschnitt(form, x0, x1, y0, y1, z0=-200, z1=400):
     return form & quader(x0, x1, y0, y1, z0, z1)
 
 
+def sensor_tasche():
+    """Ein Türmchen aus dem Testblock: Tasche, Lichtloch, Schraubloch, Kabelkerbe."""
+    a = M.TURM_X / 2 + 4
+    return _ausschnitt(M.testblock(), -a, a, -100, 100)
+
+
 def huelsen_ecke():
     """Linke vordere Ecke der Sensorplatte: Pfostenhülse mit Kabelschlitz, Stück Kabelkanal."""
     teil1 = M.zerteilen(M.sensorplatte())[0]
@@ -64,10 +70,10 @@ def pruefteile():
     """(Dateiname, Form, Anzahl, was prüfen)"""
     links, rechts = schwalben_fuge()
     return [
-        ("1_Testblock_Sensoren", M.testblock(), 2,
-         "3 Sensoren einlegen: sitzen sie stramm, liegt die LED mittig im Loch, passt die Schraube "
-         f"{P.SCHRAUBE_SENSOR[0]}×{P.SCHRAUBE_SENSOR[1]}? Beide Blöcke im Abstand {P.FENSTER_HOEHE:.0f} mm "
-         "gegenüberstellen: schaltet jeder Empfänger nur bei seinem eigenen Strahl (Übersprechen)?"),
+        ("1_Sensor_Tasche", sensor_tasche(), 1,
+         "Sensor einlegen: sitzt er stramm und bündig, steckt die LED im Loch, ist das Lichtloch frei, passt die "
+         f"Schraube {P.SCHRAUBE_SENSOR[0]}×{P.SCHRAUBE_SENSOR[1]}? Übersprechen später mit dem ganzen Testblock "
+         "(ausgabe/druck/Prototyp_Testblock.stl)."),
         ("2_Huelsen_Ecke", huelsen_ecke(), 1,
          f"Alu-Rohr {P.PFOSTEN}×{P.PFOSTEN} einstecken: leicht saugend, nicht wackelig. "
          "Passt eine Sensorader durch den Schlitz unten in der Hülse?"),

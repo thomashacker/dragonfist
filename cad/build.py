@@ -29,6 +29,15 @@ def zeile(text=""):
     bericht.append(text)
 
 
+def gramm(form, schale=0.9, fuellung=0.2):
+    """PLA-Gewicht: Außenhaut voll (Fläche × schale, geeicht an Bambu Studio, 3 Wände), Inneres mit fuellung."""
+    voll = min(form.volume, form.area * schale)
+    return 1.24 * (voll + fuellung * (form.volume - voll)) / 1000
+
+
+RESERVE_FEHLDRUCK = 1.25
+
+
 def ok(bedingung):
     return "OK " if bedingung else "!! "
 
@@ -52,16 +61,19 @@ druckteile.append(("Prototyp_Testblock", M.testblock(), 2))
 
 zeile("=== Druckteile (flach auf dem Gitter drucken, Türmchen nach oben"
       + ("; Lippe braucht Stützen" if P.MIT_LIPPE else ", ohne Stützen") + ") ===")
-gramm_gesamt = 0
+gramm_gesamt = gramm_kaefig = 0
 for name, form, anzahl in druckteile:
     bb = form.bounding_box().size
     klein, gross = sorted((bb.X, bb.Y))
     passt = klein <= min(P.DRUCKBETT) and gross <= max(P.DRUCKBETT)
-    gramm = form.volume / 1000 * 1.24 * 0.45     # PLA, grob mit 3 Wänden / 20 % Füllung
-    gramm_gesamt += gramm * anzahl
-    zeile(f"{ok(passt)}{name}: {bb.X:.0f} x {bb.Y:.0f} x {bb.Z:.0f} mm, {anzahl}x drucken, ca. {gramm:.0f} g")
+    g = gramm(form)
+    gramm_gesamt += g * anzahl
+    if name.startswith(('Sensorplatte', 'Elektronik_Nest', 'Deckel')):
+        gramm_kaefig += g * anzahl
+    zeile(f"{ok(passt)}{name}: {bb.X:.0f} x {bb.Y:.0f} x {bb.Z:.0f} mm, {anzahl}x drucken, ca. {g:.0f} g")
     export_stl(form, str(DRUCK / f"{name}.stl"), tolerance=0.02, angular_tolerance=0.1)
-zeile(f"   Filament gesamt ca. {gramm_gesamt:.0f} g")
+zeile(f"   Filament gesamt ca. {gramm_gesamt:.0f} g, davon Käfig {gramm_kaefig:.0f} g; mit Reserve für Fehldrucke "
+      f"{gramm_gesamt * RESERVE_FEHLDRUCK:.0f} g = {math.ceil(gramm_gesamt * RESERVE_FEHLDRUCK / 1000)} Rollen à 1 kg")
 
 # ---------------------------------------------------------------------------
 # Prüfdruck: Ausschnitte der echten Teile, vor dem großen Druck mit den echten Bauteilen testen
@@ -77,10 +89,10 @@ zeile("=== Prüfdruck (zuerst drucken) ===")
 pruef_zeilen, pruef_gramm = [], 0
 for name, form, anzahl, wozu in PT.pruefteile():
     bb = form.bounding_box().size
-    gramm = form.volume / 1000 * 1.24 * 0.45
-    pruef_gramm += gramm * anzahl
+    g = gramm(form)
+    pruef_gramm += g * anzahl
     export_stl(form, str(PRUEF / f"{name}.stl"), tolerance=0.02, angular_tolerance=0.1)
-    zeile(f"   {name}: {bb.X:.0f} x {bb.Y:.0f} x {bb.Z:.0f} mm, {anzahl}x, ca. {gramm:.0f} g")
+    zeile(f"   {name}: {bb.X:.0f} x {bb.Y:.0f} x {bb.Z:.0f} mm, {anzahl}x, ca. {g:.0f} g")
     pruef_zeilen.append(f"| `{name}.stl` | {anzahl}× | {bb.X:.0f} × {bb.Y:.0f} × {bb.Z:.0f} mm | {wozu} |")
 zeile(f"   Prüfdruck gesamt ca. {pruef_gramm:.0f} g")
 (Path(__file__).parent / "Pruefdruck.md").write_text(f"""# Prüfdruck – zuerst drucken, dann erst alles andere
@@ -299,7 +311,7 @@ Kabel außen: USB (Pico → Jetson), 5 V (Netzteil → Kiste) und 19 V (Jetson-N
 | {haken('amazon')}Halbrundschraube {P.SCHRAUBE_GITTER[0]}×{P.SCHRAUBE_GITTER[1]} (Gitter, Nest, Kabelkanal ans Holz) | {schr['Schraube Gitter'] + schr['Schraube Nest'] + schr['Schraube Kabelkanal']} | – | Baumarkt |
 | {haken('amazon_schraube25')}Holzschraube {P.SCHRAUBE_SENSOR[0]}×{P.SCHRAUBE_SENSOR[1]} **Halbrund-/Linsenkopf**, kein Senkkopf (Sensoren + Deckel, ins Holz) | {schr['Schraube Sensor'] + schr['Schraube Deckel']} + Reserve | 6,63 € (50 Stück) | [Amazon: DIN 96 Edelstahl 2,5×16](https://www.amazon.de/dp/B0F1YF4CH5) |
 | {haken('amazon')}Sekundenkleber (die zwei Hälften jeder Sensorplatte am Schwalbenschwanz verkleben) | 1 | 3 € | Baumarkt |
-| {haken('drucker')}Filament PLA 1,75 mm – **schwarz** für Sensorplatten/Testblock (IR-dicht), **weiß** für Pult, Deckel, Kabelkanal, Nest (Sensorplatte {n_platte} Teile je 2×, Deckel {n_platte} Teile je 2×, Nest 2×, Testblock 2×) | ca. {gramm_gesamt:.0f} g | 20 € / Rolle | beliebig |
+| {haken('drucker')}Filament PLA 1,75 mm – **schwarz** für Sensorplatten/Testblock (IR-dicht), **weiß** für Pult, Deckel, Kabelkanal, Nest (Sensorplatte {n_platte} Teile je 2×, Deckel {n_platte} Teile je 2×, Nest 2×, Testblock 2×) | ca. {gramm_gesamt:.0f} g (Käfig {gramm_kaefig:.0f} g), mit {RESERVE_FEHLDRUCK - 1:.0%} Reserve für Fehldrucke {gramm_gesamt * RESERVE_FEHLDRUCK:.0f} g = **{math.ceil(gramm_gesamt * RESERVE_FEHLDRUCK / 1000)} Rollen** | 20 € / Rolle | beliebig |
 
 ## Holz (Leimholz Kiefer {T} mm, im Baumarkt zuschneiden lassen)
 | Teil | Menge | Maß | Link |

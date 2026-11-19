@@ -44,9 +44,9 @@ TRENNUNG_A_TIEFE = 30
 # ---------------------------------------------------------------------------
 SENSOR_LAENGE = 20.0          # gemessen 20 (07.11.); Länge = Kabelrichtung
 SENSOR_BREITE = 10.0          # gemessen ≈ 10
-SENSOR_HOEHE = 8.0            # gemessen 8, ohne LED-Kuppe
+SENSOR_HOEHE = 9.0            # gemessen 9 (19.11.), ohne LED-Kuppe
 LED_DURCHMESSER = 5.0         # MESSEN  (5-mm-LED)
-LED_UEBERSTAND = 5.0          # gemessen: Höhe mit LED 13 – Gehäuse 8
+LED_UEBERSTAND = 4.1          # gemessen 19.11.: Höhe mit LED 13,1 – Gehäuse 9
 LED_VON_STIRN = 5.0           # gemessen: LED-Mitte 15 mm vom Kabelende = 5 mm von der Stirnseite
 LOCH_VON_KABEL = 5.0          # gemessen: Befestigungsloch-Mitte 5 mm vom Kabelende
 SENSOR_SCHRAUBE_D = 2.7       # Durchgang im Halter für Holzschraube 2,5 x 16 (Loch im Sensor gemessen ≈ 3 mm)
@@ -56,11 +56,12 @@ SENSOR_SCHRAUBE_D = 2.7       # Durchgang im Halter für Holzschraube 2,5 x 16 (
 KABEL_RICHTUNG = {"A": +1, "B": -1}
 
 SPIEL = 0.3                   # Passungsspiel für Taschen und Bohrungen (Drucker abhängig)
+SCHICHT = 0.2                 # Schichthöhe beim Druck (Taschendecke liegt auf diesem Raster)
 
 # Blendtunnel gegen Übersprechen (vor der LED, im Türmchen).
 # Öffnungswinkel ca. atan(D/L) muss kleiner sein als der Winkel zum Nachbarstrahl
 # (55 mm auf 340 mm = 9,2°) – build.py prüft das und meldet es.
-TUNNEL_DURCHMESSER = 2.5
+TUNNEL_DURCHMESSER = 2.9      # 2,5 druckte unsauber; mehr als 2,9 verletzt die 10-%-Reserve gegen Übersprechen
 TUNNEL_LAENGE = 20.0
 
 # ---------------------------------------------------------------------------
@@ -80,10 +81,11 @@ SCHWALBE = (8, 6, 10)         # Schwalbenschwanz an der Fuge: Länge, Breite an 
 SCHWALBE_SPIEL = 0.15         # je Seite; Teile werden zusätzlich verklebt
 
 # Sensorkäfig: obere und untere Platte über 4 Pfosten fest verbunden
-PFOSTEN = 10                  # Alu-Vierkantrohr 10 x 10 mm (Baumarkt), mit Metallsäge kürzen
+PFOSTEN = 9.9                 # Alu-Vierkantrohr 10 x 10 mm (Baumarkt), gemessen 9,9
 PFOSTEN_LUFT = 1              # so viel kürzer als das Maß zwischen den Platten: zu lang klemmt, zu kurz stört nicht
 HUELSE_HOEHE = 15             # Steckhülse auf der Platte
 HUELSE_WAND = 3
+HUELSE_SPIEL = 0.05           # je Seite -> Öffnung 10,0; mit 10,6 und 10,2 wackelte das Rohr
 LEISTE_LUFT_SEITLICH = 0.5    # Luft zwischen Platte und Seitenbrett, je Seite
 
 KABELKERBE = (7, 6)           # Ausschnitt hinten im Turmfuß für das Kabel (Breite, Höhe)

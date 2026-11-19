@@ -402,7 +402,7 @@ def adern_wege():
         if not oben:
             # LED-Streifen auf den vorderen Pfosten: 5V, GND (Wago der Seite) und Daten (Pico) -> Kanal A ->
             # Schlitz vor dem Pfosten -> innen an der Hülse vorbei nach vorne -> unteres Ende des Streifens
-            h = P.PFOSTEN + 2 * P.SPIEL + 2 * P.HUELSE_WAND
+            h = P.PFOSTEN + 2 * P.HUELSE_SPIEL + 2 * P.HUELSE_WAND
             for sd, s in (("links", -1), ("rechts", 1)):
                 px, yvorn, z0, _ = M.led_lage(s)
                 daten, draus = _pin_punkt(PICO_PINS.index(f"GP{P.GPIO_LED[sd]}") + 1)
@@ -605,7 +605,7 @@ def verkabelung_svg():
                 rect(x - M.TURM_X / 2, ga - 2, x + M.TURM_X / 2, gb + 2, oy, sp, "#2b2b2b", "#000")
                 text(x, (M.Y_A - 14) if ebene == "A" else (M.Y_B + 16), oy, sp,
                      f"{ebene}{sensor_nr(xs, x, oben)}", 11, weight="bold")
-        h = P.PFOSTEN + 2 * P.SPIEL + 2 * P.HUELSE_WAND
+        h = P.PFOSTEN + 2 * P.HUELSE_SPIEL + 2 * P.HUELSE_WAND
         for px_, py_ in M.pfosten_xy():
             rect(px_ - h / 2, py_ - h / 2, px_ + h / 2, py_ + h / 2, oy, False, "#bbb", "#777")
         ax0, ax1, ay0, ay1 = L["aussen"]
