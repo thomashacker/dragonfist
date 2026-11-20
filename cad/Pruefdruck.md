@@ -22,4 +22,4 @@ Passt ein Stück nicht: messen, Wert in `parameter.py` ändern (Zeilen mit `# ME
 1. Sensoren (Adafruit) messen: Gehäuse, LED-Kuppe, Befestigungsloch → `parameter.py` → neu bauen → **dann** drucken.
 2. Prüfteile drucken, mit den echten Teilen testen, Maße anpassen.
 3. Display, Jetson-Lochabstand, Boxenflansch nachmessen (stehen ebenfalls mit `# MESSEN` in `parameter.py`).
-4. Erst dann die Endteile aus `ausgabe/druck/` drucken (ca. 1406 g).
+4. Erst dann die Endteile aus `ausgabe/druck/` drucken (ca. 1405 g).

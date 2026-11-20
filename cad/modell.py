@@ -520,14 +520,16 @@ def _saeule(x, y, loch=False):
     return zyl_z(x, y, 0, z0, P.DECKEL_SAEULE_D)
 
 
-def deckel():
-    """Ganzer Deckel (wird wie die Platte an den Trennfugen geteilt)."""
+def deckel(logo=True):
+    """Ganzer Deckel (wird wie die Platte an den Trennfugen geteilt); Logo nur auf dem unteren."""
     x0, x1, y0, y1, z0 = deckel_lage()
     form = quader(x0, x1, y0, y1, z0, z0 + P.DECKEL_DICKE)
     zs, s = kanal_hoehe() + P.DECKEL_FUGE, P.DECKEL_SCHUERZE
     form += quader(x0, x1, y0, y0 + s, zs, z0) + quader(x0, x1, y1 - s, y1, zs, z0)
     for x, y in deckel_saeulen():
         form -= zyl_z(x, y, z0 - 1, z0 + P.DECKEL_DICKE + 1, P.SCHRAUBE_SENSOR[0] + 0.3)
+    if not logo:
+        return form
     import schilder                                            # spät: schilder baut auf modell auf
     oben = z0 + P.DECKEL_DICKE - P.DECKEL_GRAVUR
     for f in schilder.logo_flaechen(P.DECKEL_LOGO_D):
@@ -535,10 +537,10 @@ def deckel():
     return form
 
 
-def deckel_haelften():
+def deckel_haelften(logo=True):
     """Stücke wie die Sensorplatte geteilt, an jeder Fuge zwei Schwalbenschwänze (verklebt):
     so trägt der Deckel als ein Stück und braucht nur die Säulen an den Enden."""
-    d = deckel()
+    d = deckel(logo)
     _, _, y0, y1, z0 = deckel_lage()
     hoch = Pos(0, 0, z0 + 1)
     stuecke = [(LEISTE_X0, P.DECKEL_TEILUNG), (P.DECKEL_TEILUNG, LEISTE_X1)]
@@ -551,10 +553,10 @@ def deckel_haelften():
     return teile
 
 
-def deckel_druck():
+def deckel_druck(logo=True):
     """Hälften in Drucklage: Oberseite auf dem Bett, Schürzen nach oben."""
     _, _, y0, y1, z0 = deckel_lage()
-    return [Pos(0, y0 + y1, z0 + P.DECKEL_DICKE) * Rot(180, 0, 0) * h for h in deckel_haelften()]
+    return [Pos(0, y0 + y1, z0 + P.DECKEL_DICKE) * Rot(180, 0, 0) * h for h in deckel_haelften(logo)]
 
 
 
@@ -640,7 +642,7 @@ def rahmen():
                               ("druck", "druck_c")[nr % 2]))
 
     for oben in (False, True):
-        for nr, h in enumerate(deckel_haelften(), 1):
+        for nr, h in enumerate(deckel_haelften(not oben), 1):
             teile.append(teil(platzieren(h, oben), f"Deckel Teil {nr} ({'oben' if oben else 'unten'})", "deckel"))
     teile += pfosten(T + P.PLATTE_DICKE, AUSSEN_H - T - P.PLATTE_DICKE - P.PFOSTEN_LUFT)
     teile += sensoren_und_strahlen(T, AUSSEN_H - T)

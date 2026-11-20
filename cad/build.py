@@ -51,7 +51,9 @@ for f in DRUCK.glob("*.stl"):          # alte Stücke entfernen, falls sich die 
 platte = M.zerteilen(M.sensorplatte())
 druckteile += [(f"Sensorplatte_Teil{i}", s, 2) for i, s in enumerate(platte, 1)]
 druckteile += [(f"Elektronik_Nest_Teil{i}", n, 2) for i, n in enumerate(M.nest_teile(), 1)]
-druckteile += [(f"Deckel_Teil{i}", d, 2) for i, d in enumerate(M.deckel_druck(), 1)]
+deckel_logo, deckel_flach = M.deckel_druck(), M.deckel_druck(False)
+druckteile += [("Deckel_Teil1", deckel_logo[0], 2), ("Deckel_Teil2_Logo_unten", deckel_logo[1], 1),
+               ("Deckel_Teil2_ohne_Logo_oben", deckel_flach[1], 1)]
 import pult as PU  # noqa: E402
 druckteile += [("Pult_Gehaeuse", PU.gehaeuse(), 1), ("Pult_Boden", PU.boden(), 1)]
 import schilder as SCH  # noqa: E402
@@ -311,7 +313,7 @@ Kabel außen: USB (Pico → Jetson), 5 V (Netzteil → Kiste) und 19 V (Jetson-N
 | {haken('amazon')}Halbrundschraube {P.SCHRAUBE_GITTER[0]}×{P.SCHRAUBE_GITTER[1]} (Gitter, Nest, Kabelkanal ans Holz) | {schr['Schraube Gitter'] + schr['Schraube Nest'] + schr['Schraube Kabelkanal']} | – | Baumarkt |
 | {haken('amazon_schraube25')}Holzschraube {P.SCHRAUBE_SENSOR[0]}×{P.SCHRAUBE_SENSOR[1]} **Halbrund-/Linsenkopf**, kein Senkkopf (Sensoren + Deckel, ins Holz) | {schr['Schraube Sensor'] + schr['Schraube Deckel']} + Reserve | 6,63 € (50 Stück) | [Amazon: DIN 96 Edelstahl 2,5×16](https://www.amazon.de/dp/B0F1YF4CH5) |
 | {haken('amazon')}Sekundenkleber (die zwei Hälften jeder Sensorplatte am Schwalbenschwanz verkleben) | 1 | 3 € | Baumarkt |
-| {haken('drucker')}Filament PLA 1,75 mm – **schwarz** für Sensorplatten/Testblock (IR-dicht), **weiß** für Pult, Deckel, Kabelkanal, Nest (Sensorplatte {n_platte} Teile je 2×, Deckel {n_platte} Teile je 2×, Nest 2×, Testblock 2×) | ca. {gramm_gesamt:.0f} g (Käfig {gramm_kaefig:.0f} g), mit {RESERVE_FEHLDRUCK - 1:.0%} Reserve für Fehldrucke {gramm_gesamt * RESERVE_FEHLDRUCK:.0f} g = **{math.ceil(gramm_gesamt * RESERVE_FEHLDRUCK / 1000)} Rollen** | 20 € / Rolle | beliebig |
+| {haken('drucker')}Filament PLA 1,75 mm – **schwarz** für Sensorplatten/Testblock (IR-dicht), **weiß** für Pult, Deckel, Kabelkanal, Nest (Sensorplatte {n_platte} Teile je 2×, Deckel {n_platte} Teile je 2× – Logo nur unten, Nest 2×, Testblock 2×) | ca. {gramm_gesamt:.0f} g (Käfig {gramm_kaefig:.0f} g), mit {RESERVE_FEHLDRUCK - 1:.0%} Reserve für Fehldrucke {gramm_gesamt * RESERVE_FEHLDRUCK:.0f} g = **{math.ceil(gramm_gesamt * RESERVE_FEHLDRUCK / 1000)} Rollen** | 20 € / Rolle | beliebig |
 
 ## Holz (Leimholz Kiefer {T} mm, im Baumarkt zuschneiden lassen)
 | Teil | Menge | Maß | Link |
