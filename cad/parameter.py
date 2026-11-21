@@ -193,8 +193,10 @@ SCHILD_TEXT = 1.2             # Schrift steht so weit über dem Boden
 SCHILD_DRAGONFIST = (186, 26, 18)    # Breite, Höhe, Schrifthöhe max – vorne am Pult
 SCHILD_DRAGONFIST_Z = 36
 SCHILD_DRAGONFIST_SCHRIFT = "C:/Windows/Fonts/impact.ttf"
-SCHILD_SCHMUHL = (100, 16, 10)       # Instrument Serif, rechte Kistenseite unten vorne in der Ecke
+SCHILD_SCHMUHL = (116, 16, 10)       # Instrument Serif, rechte Kistenseite unten vorne in der Ecke
 SCHILD_SCHMUHL_RAND = 15     # Abstand zur Vorder- und Unterkante
+SCHILD_LOCH = 3.0            # 2 Löcher für 2,5×16 Halbrund ins 18-mm-Brett
+SCHILD_LOCH_RAND = 6
 # VietVoDao-Logo in beide Deckel graviert (Logo-Ebenen aus logo/). Deckel kopfüber drucken: die ersten
 # DECKEL_GRAVUR mm schwarz, danach weiß -> schwarze Fläche mit weißem Logo
 DECKEL_LOGO_D = 96

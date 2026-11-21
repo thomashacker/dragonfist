@@ -10,7 +10,7 @@ from pathlib import Path
 
 import contourpy
 import numpy as np
-from build123d import Align, Face, Pos, RectangleRounded, Rot, Text, Wire, extrude
+from build123d import Align, Cylinder, Face, Pos, RectangleRounded, Rot, Text, Wire, extrude
 from PIL import Image
 
 import parameter as P
@@ -101,11 +101,17 @@ def logo_flaechen(d):
     return tuple(_flaechen(m[0] | m[1] | m[2] | m[3], d / 2 / RADIUS / FAKTOR))
 
 
-def _schild(txt, schrift, breite, hoehe, text_h, rand=3):
+def _schild(txt, schrift, breite, hoehe, text_h, rand=3, loch=0):
     platte = extrude(RectangleRounded(breite, hoehe, rand), amount=P.SCHILD_BODEN)
+    frei = rand + 2
+    if loch:
+        a = breite / 2 - P.SCHILD_LOCH_RAND
+        for x in (-a, a):
+            platte -= Pos(x, 0, -1) * Cylinder(loch / 2, P.SCHILD_BODEN + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        frei = P.SCHILD_LOCH_RAND + 6
     t = Text(txt, 10, font_path=str(schrift), align=(Align.CENTER, Align.CENTER))
     bb = t.bounding_box()
-    k = min((breite - 2 * rand - 4) / bb.size.X, text_h / bb.size.Y)
+    k = min((breite - 2 * frei) / bb.size.X, text_h / bb.size.Y)
     t = Text(txt, 10 * k, font_path=str(schrift), align=(Align.CENTER, Align.CENTER))
     return platte + Pos(0, 0, P.SCHILD_BODEN) * extrude(t, amount=P.SCHILD_TEXT)
 
@@ -115,7 +121,7 @@ def dragonfist():
 
 
 def schmuhl():
-    return _schild("schmuhlsches wissen", SCHRIFT, *P.SCHILD_SCHMUHL)
+    return _schild("schmuhlsches wissen", SCHRIFT, *P.SCHILD_SCHMUHL, loch=P.SCHILD_LOCH)
 
 
 def druckteile():

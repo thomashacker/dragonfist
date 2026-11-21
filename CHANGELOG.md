@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.3.1] – 2026-11-21
+
+### Changed
+- Sign "schmuhlsches wissen" 116 mm wide with two Ø3 mm screw holes for 2.5×16 pan-head screws
+
 ## [0.3.0] – 2026-11-21
 
 ### Added
