@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / "monitor"))
 
 import pygame
 
-from monitor import State, reader
+from monitor import State, font, reader
 from punch import WRAP
 from runlog import RunLog
 from sound import Sfx
@@ -22,13 +22,11 @@ from scenes import W, H, BG, INK, DIM, GREEN, Intro
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 CFG_FILE = ROOT / "settings.json"
 CFG = dict(audio=None, volume=80, ton=True, abstand=200)
-MONO = "consolas,dejavusansmono,liberationmono,couriernew"
 
 
 class Fonts:
     def __init__(self):
-        self.f = {k: pygame.font.SysFont(MONO, n, bold=k in ("l", "xl")) for k, n in
-                  (("xs", 17), ("s", 22), ("m", 30), ("l", 46), ("xl", 100))}
+        self.f = {k: font(n) for k, n in (("xs", 17), ("s", 22), ("m", 30), ("l", 46), ("xl", 100))}
         self.cache = {}
 
     def text(self, s, t, pos, size="s", col=INK, anchor="topleft"):

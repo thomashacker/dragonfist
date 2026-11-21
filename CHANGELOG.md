@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.2.1] – 2026-11-21
+
+### Changed
+- Bundled font DejaVu Sans Mono Bold (`app/assets/fonts/`, Bitstream Vera license) for app and monitor, same look on PC and Jetson, close to the Wiremod console font
+- Title tiles show only START and EINSTELLUNGEN
+
 ## [0.2.0] – 2026-11-21
 
 ### Added

@@ -73,8 +73,8 @@ class Title(Tiles):
 
     def __init__(self, app):
         super().__init__(app, [
-            ("START", "Story · Arena", lambda: app.push(Modes(app))),
-            ("EINSTELLUNGEN", "Ton · Kalibrierung", lambda: app.push(Settings(app))),
+            ("START", "", lambda: app.push(Modes(app))),
+            ("EINSTELLUNGEN", "", lambda: app.push(Settings(app))),
         ])
 
     def draw(self, s, now):
