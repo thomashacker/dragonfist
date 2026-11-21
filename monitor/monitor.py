@@ -23,6 +23,14 @@ MA_PAIR = 21
 
 WHITE, GREY, DIM, BLACK = (235, 235, 235), (120, 120, 120), (50, 50, 50), (0, 0, 0)
 GREEN = (90, 230, 130)
+FONT = Path(__file__).resolve().parent.parent / "app" / "assets" / "fonts" / "DejaVuSansMono-Bold.ttf"
+
+
+def font(size):
+    try:
+        return pygame.font.Font(str(FONT), size)
+    except (OSError, FileNotFoundError):
+        return pygame.font.SysFont("dejavusansmono,consolas,monospace", size, bold=True)
 
 
 class Kanal:
@@ -185,9 +193,7 @@ class Ui:
         for k, v in t.items():
             setattr(self, k, v)
         self.mute = False
-        mono = "consolas,dejavusansmono,liberationmono,couriernew"
-        self.f = {k: pygame.font.SysFont(mono, n, bold=k in ("l", "xl")) for k, n in
-                  (("xs", 12), ("s", 15), ("m", 20), ("l", 28), ("xl", 40))}
+        self.f = {k: font(n) for k, n in (("xs", 12), ("s", 15), ("m", 20), ("l", 28), ("xl", 40))}
 
     def text(self, t, pos, size="s", col=None, anchor="topleft"):
         img = self.f[size].render(t, True, col or self.FG)

@@ -105,3 +105,9 @@ def test_quit_from_settings(app):
 def test_version_shown(app):
     to_title(app)
     assert app.version.count(".") == 2
+
+
+def test_bundled_font(app):
+    from monitor import FONT
+    assert FONT.exists()
+    assert app.font.f["xl"].size("DRAGONFIST")[0] < scenes.W
