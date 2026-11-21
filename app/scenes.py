@@ -10,6 +10,7 @@ ASSETS = Path(__file__).resolve().parent / "assets"
 
 class Scene:
     sounds = ("treffer", "verbunden", "getrennt")
+    music = "title"
 
     def __init__(self, app):
         self.app = app
@@ -125,7 +126,7 @@ class Settings(Scene):
     def set(self, k, v):
         self.app.cfg[k] = v
         if k == "volume":
-            self.app.sfx.volume(v / 100)
+            self.app.volume()
         self.app.save()
 
     def audio(self, d):
@@ -173,6 +174,8 @@ class Settings(Scene):
 
 
 class Placeholder(Scene):
+    music = "action"
+
     def __init__(self, app, name):
         super().__init__(app)
         self.name, self.n = name, 0
@@ -194,6 +197,7 @@ class Placeholder(Scene):
 
 class Calibration(Scene):
     sounds = ("bruch", "frei", "treffer", "verbunden", "getrennt")
+    music = None
 
     def __init__(self, app):
         super().__init__(app)
@@ -212,7 +216,7 @@ class Calibration(Scene):
 
 
 class Intro(Scene):
-    bare = True
+    bare, music = True, None
     FADE_IN, HOLD, FADE_OUT, GAP = 0.9, 1.7, 0.6, 0.35
 
     def __init__(self, app):

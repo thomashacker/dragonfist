@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.3.0] – 2026-11-21
+
+### Added
+- Background music: title theme in menus, action theme in modes, silence during calibration and intro
+- Music follows volume and TON setting
+
 ## [0.2.2] – 2026-11-21
 
 ### Changed
