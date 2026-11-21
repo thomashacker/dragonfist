@@ -4,7 +4,7 @@ from ubinascii import hexlify
 
 VERSION = 1
 A = (0, 3, 6, 9, 12, 15)
-B = (28, 27, 26, 21, 20, 18, 17)
+B = (28, 27, 22, 21, 14, 18, 17)
 CH = A + B
 SIO_IN = 0xD0000004
 
