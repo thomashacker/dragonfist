@@ -3,4 +3,4 @@ Description=DRAGONFIST update from origin/main
 
 [Service]
 Type=oneshot
-ExecStart=%h/dragonfist/deploy/update.sh
+ExecStart=/bin/bash %h/dragonfist/deploy/update.sh
