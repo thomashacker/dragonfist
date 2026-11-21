@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.3.2] – 2026-11-21
+
+### Changed
+- Sensor B3 moved from GP26 to GP22, B5 from GP20 to GP14 (wiring fault on the old breadboard rows); Pico firmware must be re-flashed
+
 ## [0.3.1] – 2026-11-21
 
 ### Changed

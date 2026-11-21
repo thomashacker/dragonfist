@@ -60,9 +60,9 @@ Falls doch einmal eine Ader zu kurz ist: mit einer weiteren Wago und einem Stüc
 | 6 | A | rechts | +150 mm | GP15 | 20 |
 | 7 | B | links | -165 mm | GP28 | 34 |
 | 8 | B | links | -110 mm | GP27 | 32 |
-| 9 | B | links | -55 mm | GP26 | 31 |
+| 9 | B | links | -55 mm | GP22 | 29 |
 | 10 | B | Mitte | +0 mm | GP21 | 27 |
-| 11 | B | rechts | +55 mm | GP20 | 26 |
+| 11 | B | rechts | +55 mm | GP14 | 19 |
 | 12 | B | rechts | +110 mm | GP18 | 24 |
 | 13 | B | rechts | +165 mm | GP17 | 22 |
 | – | – | – | – | GND | 3 → Wago GND unten |

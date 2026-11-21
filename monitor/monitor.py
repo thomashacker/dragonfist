@@ -16,7 +16,7 @@ from sound import Sfx
 
 W, H = 1024, 600
 A = (0, 3, 6, 9, 12, 15)
-B = (28, 27, 26, 21, 20, 18, 17)
+B = (28, 27, 22, 21, 14, 18, 17)
 GP = A + B
 NAME = [f"A{i + 1}" for i in range(len(A))] + [f"B{i + 1}" for i in range(len(B))]
 MA_PAIR = 21
