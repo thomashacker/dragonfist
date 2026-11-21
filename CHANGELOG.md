@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.2.2] – 2026-11-21
+
+### Changed
+- Mouse cursor hidden while the app runs
+
 ## [0.2.1] – 2026-11-21
 
 ### Changed
