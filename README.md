@@ -31,8 +31,26 @@ Punch: first A break starts, first B break stops, counted once all beams are cle
 python app/main.py [--sim] [--fullscreen] [--abstand 200] [--mute]
 ```
 Arrows/joystick select, A/D change values, Enter/Space/button 0 ok, Esc/Backspace/button 1 back, F11 fullscreen.
-`--sim` replaces the Pico: `←`/`→` = full left/right punch, or by hand `Q` then `W` (A1, B1), `O` then `P` (A6, B7).
-Settings (audio device, volume, A–B distance) persist in `settings.json`.
+`--sim` replaces the Pico: `←`/`→` = full left/right punch (select with A/D), or by hand `Q` then `W` (A1, B1), `O` then `P` (A6, B7).
+Menu: START (Story, Arena) and EINSTELLUNGEN (audio, volume, A–B distance, calibration). Settings persist in `settings.json`.
+
+## Jetson
+```
+git clone https://github.com/thomashacker/dragonfist.git ~/dragonfist
+~/dragonfist/deploy/install.sh
+```
+Sets up the venv, GDM autologin, no screen lock, and two systemd user units:
+- `dragonfist.service` starts the app fullscreen with the desktop session and restarts it on exit
+- `dragonfist-update.timer` runs `deploy/update.sh` every 2 min: pulls `origin/main`, installs requirements, runs the tests, restarts the app; on failing tests it stays on the old commit
+
+Log: `~/.local/state/dragonfist/update.log`. Pause updates (e.g. during an event): `touch ~/.dragonfist-noupdate`.
+```
+systemctl --user status dragonfist
+journalctl --user -u dragonfist -f
+```
+
+## Versions
+Every PR to `main` bumps `VERSION` (SemVer) and adds an entry to `CHANGELOG.md`. The version is shown on the title screen.
 
 ## Sounds
 Synthesized from `DEFAULTS` in `monitor/sound.py`. A file `app/assets/sounds/<name>.wav` replaces the synth sound.

@@ -1,0 +1,13 @@
+[Unit]
+Description=DRAGONFIST
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+WorkingDirectory=%h/dragonfist
+ExecStart=%h/dragonfist/.venv/bin/python app/main.py --fullscreen
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

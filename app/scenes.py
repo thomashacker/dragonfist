@@ -25,67 +25,84 @@ class Scene:
         pass
 
 
-class Menu(Scene):
-    title = ""
+class Tiles(Scene):
+    title, size, cy = "", 280, 340
 
     def __init__(self, app, items):
         super().__init__(app)
         self.items, self.sel = items, 0
 
     def on(self, a):
-        if a in ("up", "down"):
-            self.sel = (self.sel + (1 if a == "down" else -1)) % len(self.items)
+        if a in ("left", "right", "up", "down"):
+            self.sel = (self.sel + (1 if a in ("right", "down") else -1)) % len(self.items)
             self.app.play("move")
         elif a == "ok":
             self.app.play("ok")
-            self.items[self.sel][1]()
+            self.items[self.sel][2]()
         elif a == "back":
             self.app.play("back")
             self.app.pop()
 
-    def draw_items(self, s, now, y0, gap=56):
-        f = self.app.font
-        for k, (label, _) in enumerate(self.items):
-            y = y0 + k * gap
-            box = pygame.Rect(0, 0, 340, 44)
-            box.center = (W // 2, y)
-            if k == self.sel:
-                pygame.draw.rect(s, INK, box)
+    def draw_tiles(self, s, now):
+        f, n, size = self.app.font, len(self.items), self.size
+        gap = size // 8
+        x0 = (W - n * size - (n - 1) * gap) // 2
+        fits = lambda k, i: all(f.f[k].size(it[i])[0] <= size - 24 for it in self.items)
+        big, small = "l" if fits("l", 0) else "m", "s" if fits("s", 1) else "xs"
+        for k, (label, sub, _) in enumerate(self.items):
+            r = pygame.Rect(x0 + k * (size + gap), self.cy - size // 2, size, size)
+            on = k == self.sel
+            if on:
+                r.inflate_ip(16, 16)
+                pygame.draw.rect(s, INK, r)
             else:
-                pygame.draw.rect(s, LO, box, 1)
-            f.text(s, label, box.center, "m", BG if k == self.sel else INK, "center")
+                pygame.draw.rect(s, LO, r, 3)
+            col = BG if on else INK
+            f.text(s, label, (r.centerx, r.centery - (14 if sub else 0)), big, col, "center")
+            sub and f.text(s, sub, (r.centerx, r.centery + 34), small, BG if on else DIM, "center")
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, self.title, (W // 2, 70), "l", INK, "center")
-        pygame.draw.line(s, LO, (W // 2 - 170, 104), (W // 2 + 170, 104))
-        self.draw_items(s, now, 180)
+        f.text(s, self.title, (W // 2, 64), "l", INK, "center")
+        pygame.draw.line(s, LO, (W // 2 - 220, 104), (W // 2 + 220, 104))
+        self.draw_tiles(s, now)
 
 
-class Title(Menu):
+class Title(Tiles):
+    size, cy = 300, 360
+
     def __init__(self, app):
         super().__init__(app, [
-            ("STORY", lambda: app.push(Placeholder(app, "STORY"))),
-            ("ARENA", lambda: app.push(Arena(app))),
-            ("EINSTELLUNGEN", lambda: app.push(Settings(app))),
-            ("KALIBRIERUNG", lambda: app.push(Calibration(app))),
+            ("START", "Story · Arena", lambda: app.push(Modes(app))),
+            ("EINSTELLUNGEN", "Ton · Kalibrierung", lambda: app.push(Settings(app))),
         ])
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "DRAGONFIST", (W // 2, 130), "xl", INK, "center")
-        pygame.draw.line(s, LO, (W // 2 - 260, 190), (W // 2 + 260, 190))
-        self.draw_items(s, now, 280)
+        f.text(s, "DRAGONFIST", (W // 2, 100), "xl", INK, "center")
+        pygame.draw.line(s, LO, (W // 2 - 300, 166), (W // 2 + 300, 166))
+        self.draw_tiles(s, now)
+        f.text(s, "v" + self.app.version, (W - 16, H - 44), "xs", DIM, "bottomright")
 
     def on(self, a):
         a != "back" and super().on(a)
 
 
-class Arena(Menu):
-    title = "ARENA"
+class Modes(Tiles):
+    title = "START"
 
     def __init__(self, app):
-        super().__init__(app, [(n, lambda n=n: app.push(Placeholder(app, n)))
+        super().__init__(app, [
+            ("STORY", "Abenteuer", lambda: app.push(Placeholder(app, "STORY"))),
+            ("ARENA", "Wettkampf", lambda: app.push(Arena(app))),
+        ])
+
+
+class Arena(Tiles):
+    title, size = "ARENA", 210
+
+    def __init__(self, app):
+        super().__init__(app, [(n, "", lambda n=n: app.push(Placeholder(app, n)))
                                for n in ("ZEITLIMIT", "SERIE", "REAKTION", "ENDLOS")])
 
 
@@ -101,6 +118,7 @@ class Settings(Scene):
             ("TON", lambda: "AN" if c["ton"] else "AUS", lambda d: self.set("ton", not c["ton"]), None),
             ("TESTTON", lambda: "OK drücken", None, lambda: app.sfx.play("treffer")),
             ("ABSTAND A–B", lambda: f"{c['abstand']:g} mm", lambda d: self.abstand(d), None),
+            ("KALIBRIERUNG", lambda: "OK drücken", None, lambda: app.push(Calibration(app))),
             ("APP BEENDEN", lambda: "", None, lambda: setattr(app, "running", False)),
         ]
 
@@ -139,16 +157,16 @@ class Settings(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "EINSTELLUNGEN", (W // 2, 70), "l", INK, "center")
-        pygame.draw.line(s, LO, (W // 2 - 220, 104), (W // 2 + 220, 104))
+        f.text(s, "EINSTELLUNGEN", (W // 2, 54), "l", INK, "center")
+        pygame.draw.line(s, LO, (W // 2 - 260, 90), (W // 2 + 260, 90))
         for k, (label, val, change, _) in enumerate(self.rows):
-            box = pygame.Rect(W // 2 - 340, 150 + k * 56, 680, 44)
+            box = pygame.Rect(W // 2 - 400, 110 + k * 58, 800, 50)
             on = k == self.sel
             pygame.draw.rect(s, INK, box) if on else pygame.draw.rect(s, LO, box, 1)
             col = BG if on else INK
             f.text(s, label, (box.x + 18, box.centery), "m", col, "midleft")
             v = val()
-            v = v if len(v) <= 30 else v[:29] + "…"
+            v = v if len(v) <= 24 else v[:23] + "…"
             if change and on:
                 v = f"<  {v}  >"
             f.text(s, v, (box.right - 18, box.centery), "s", col if on else DIM, "midright")
@@ -169,9 +187,9 @@ class Placeholder(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, self.name, (W // 2, 70), "l", INK, "center")
+        f.text(s, self.name, (W // 2, 64), "l", INK, "center")
         f.text(s, "KOMMT BALD", (W // 2, 250), "xl", INK, "center")
-        f.text(s, f"Testschläge: {self.n}", (W // 2, 330), "m", DIM, "center")
+        f.text(s, f"Testschläge: {self.n}", (W // 2, 350), "m", DIM, "center")
 
 
 class Calibration(Scene):
