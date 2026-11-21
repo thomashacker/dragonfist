@@ -46,6 +46,7 @@ class App:
         flags = pygame.SCALED | (pygame.FULLSCREEN if a.fullscreen else pygame.RESIZABLE)
         self.screen = pygame.display.set_mode((W, H), flags)
         pygame.display.set_caption("DRAGONFIST")
+        pygame.mouse.set_visible(False)
         self.cfg = dict(CFG)
         try:
             self.cfg |= json.loads(CFG_FILE.read_text(encoding="utf-8"))

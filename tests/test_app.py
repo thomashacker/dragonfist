@@ -111,3 +111,7 @@ def test_bundled_font(app):
     from monitor import FONT
     assert FONT.exists()
     assert app.font.f["xl"].size("DRAGONFIST")[0] < scenes.W
+
+
+def test_cursor_hidden(app):
+    assert not pygame.mouse.get_visible()
