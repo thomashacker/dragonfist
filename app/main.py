@@ -21,6 +21,7 @@ from scenes import W, H, BG, INK, DIM, GREEN, Intro
 
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 CFG_FILE = ROOT / "settings.json"
+MUSIC = ROOT / "app" / "assets" / "music"
 CFG = dict(audio=None, volume=80, ton=True, abstand=200)
 
 
@@ -63,7 +64,7 @@ class App:
             self.st.connect("SIM")
         else:
             threading.Thread(target=reader, args=(self.st, a.port, self.stop), daemon=True).start()
-        self.stack, self.toast, self.sim_s, self.fade = [], None, 0.0, None
+        self.stack, self.toast, self.sim_s, self.fade, self.track = [], None, 0.0, None, None
         self.black = pygame.Surface((W, H))
         self.black.fill(BG)
         self.push(Intro(self))
@@ -97,8 +98,30 @@ class App:
                 pygame.mixer.init(44100, -16, 1, 256)
             except pygame.error:
                 pass
-        self.sfx = Sfx()
-        self.sfx.volume(self.cfg["volume"] / 100)
+        self.sfx, self.track = Sfx(), None
+        self.volume()
+
+    def volume(self):
+        v = self.cfg["volume"] / 100
+        self.sfx.volume(v)
+        try:
+            pygame.mixer.music.set_volume(0.5 * v)
+        except pygame.error:
+            pass
+
+    def music(self):
+        want = None if self.mute else self.stack[-1].music
+        if want == self.track:
+            return
+        self.track = want
+        try:
+            if want:
+                pygame.mixer.music.load(str(MUSIC / f"{want}_theme.mp3"))
+                pygame.mixer.music.play(-1, fade_ms=600)
+            else:
+                pygame.mixer.music.fadeout(400)
+        except (pygame.error, FileNotFoundError):
+            pass
 
     @property
     def mute(self):
@@ -129,6 +152,7 @@ class App:
             for c in self.input.held_ch():
                 m &= ~(1 << c)
             self.st.feed("S %x" % m)
+        self.music()
         self.st.tick(now)
         with self.st.lock:
             snd, hits = list(dict.fromkeys(self.st.sfx)), list(self.st.hits)

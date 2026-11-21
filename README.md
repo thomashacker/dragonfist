@@ -55,6 +55,8 @@ Every PR to `main` bumps `VERSION` (SemVer) and adds an entry to `CHANGELOG.md`.
 ## Sounds
 Synthesized from `DEFAULTS` in `monitor/sound.py`. A file `app/assets/sounds/<name>.wav` replaces the synth sound.
 
+Music: `app/assets/music/title_theme.mp3` (menus) and `action_theme.mp3` (modes). Not in the repo; copy them to the device. Missing files mean no music.
+
 ## Tests
 ```
 .venv/Scripts/pip install -r requirements-dev.txt

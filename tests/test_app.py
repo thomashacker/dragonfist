@@ -115,3 +115,22 @@ def test_bundled_font(app):
 
 def test_cursor_hidden(app):
     assert not pygame.mouse.get_visible()
+
+
+def test_music_follows_scene(app):
+    app.force_mute = False
+    frames(app, n=1)
+    assert app.track is None
+    to_title(app)
+    assert app.track == "title"
+    frames(app, ["ok", "ok"])
+    assert top(app) == "Placeholder" and app.track == "action"
+    frames(app, ["back", "back", "right", "ok"])
+    assert top(app) == "Settings" and app.track == "title"
+    app.stack[-1].sel = 5
+    frames(app, ["ok"])
+    assert top(app) == "Calibration" and app.track is None
+    frames(app, ["back"])
+    app.cfg["ton"] = False
+    frames(app, n=1)
+    assert app.track is None
