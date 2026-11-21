@@ -73,3 +73,15 @@ def test_runlog_summary(st, tmp_path):
     assert s["kanaele"]["B1"]["brueche"] == 1
     assert s["schlaege"]["ok"] == 1
     assert (st.rl.dir / "punches.csv").read_text(encoding="utf-8").count("TREFFER") == 1
+
+
+def test_stuck_channel_marked_dead(st):
+    st.feed("S %x" % (((1 << 13) - 1) & ~(1 << 8)))
+    t = time.monotonic()
+    st.tick(t)
+    assert not st.ch[8].dead(t) and st.punch.low
+    st.tick(t + 6)
+    assert st.ch[8].dead(t + 6) and st.punch.dead == 1 << 8 and not st.punch.low
+    st.feed("E 8 1 5")
+    st.tick(time.monotonic())
+    assert not st.ch[8].dead(time.monotonic()) and st.punch.dead == 0

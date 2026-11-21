@@ -10,7 +10,7 @@ import pygame
 import serial
 from serial.tools import list_ports
 
-from punch import Punch
+from punch import Punch, DEAD_S
 from runlog import RunLog, GLITCH_US
 from sound import Sfx
 
@@ -38,6 +38,9 @@ class Kanal:
 
     def __init__(self):
         self.v, self.seen0, self.breaks, self.t = None, False, 0, 0.0
+
+    def dead(self, now):
+        return self.v == 0 and now - self.t > DEAD_S
 
 
 class State:
@@ -122,6 +125,7 @@ class State:
 
     def tick(self, now):
         with self.lock:
+            self.punch.set_dead(sum(c.dead(now) << i for i, c in enumerate(self.ch)), now)
             r = self.punch.tick(now)
             if r:
                 r["ok"] and self.sfx.append("treffer")
@@ -189,7 +193,7 @@ class Ui:
     def __init__(self, surf, theme=None):
         self.s = surf
         t = dict(FG=WHITE, MID=GREY, LO=DIM, BG=BLACK, OK=GREEN, ACC=WHITE, TFMT="%H:%M:%S",
-                 WORDS={"ok": "SIGNAL", "bruch": "UNTERBROCHEN", "?": "OFFLINE"}) | (theme or {})
+                 WORDS={"ok": "SIGNAL", "bruch": "UNTERBROCHEN", "?": "OFFLINE", "tot": "DEFEKT"}) | (theme or {})
         for k, v in t.items():
             setattr(self, k, v)
         self.mute = False
@@ -216,7 +220,7 @@ class Ui:
                 x = x0 + 18 + k * 18 + int(time.monotonic() * 40) % 18
                 pygame.draw.line(self.s, col, (x, cy - 3), (x + 4, cy), 2)
                 pygame.draw.line(self.s, col, (x, cy + 3), (x + 4, cy), 2)
-        elif state == "bruch":
+        elif state in ("bruch", "tot"):
             pygame.draw.line(self.s, col, (x0 + 8, cy), (cx - 10, cy), 2)
             pygame.draw.line(self.s, col, (cx - 5, cy - 6), (cx + 5, cy + 6), 2)
             pygame.draw.line(self.s, col, (cx - 5, cy + 6), (cx + 5, cy - 6), 2)
@@ -250,13 +254,15 @@ class Ui:
             pygame.draw.circle(d, col, (x + 8, y + 8), 2)
 
     def cell(self, r, i, c, now):
-        if c.v == 0:
+        if c.dead(now):
+            state, fg, fill = "tot", self.MID, None
+        elif c.v == 0:
             state, fg, fill = "bruch", self.BG, self.ACC
         elif c.v == 1 and c.seen0:
             state, fg, fill = "ok", self.FG, None
         else:
             state, fg, fill = "?", self.MID, None
-        self.box(r, self.FG if state != "?" else self.LO, fill)
+        self.box(r, self.FG if state in ("ok", "bruch") else self.LO, fill)
         self.text(NAME[i], (r.x + 10, r.y + 6), "l", fg)
         self.text(f"GP{GP[i]}", (r.right - 8, r.y + 10), "xs", fg if fill else self.MID, "topright")
         self.beam(r.centerx, r.y + 64, state, fg)
@@ -307,7 +313,7 @@ class Ui:
         hb = pygame.Rect(232, y0, 400, hgt)
         self.box(hb, self.LO)
         self.text("HEALTH", (hb.x + 12, hb.y + 8), "xs", self.MID)
-        erkannt = sum(c.seen0 for c in ch)
+        erkannt = sum(c.seen0 and not c.dead(now) for c in ch)
         rows = [("usb", "USB 5V", ("OK" if health.get("vbus") else "FEHLT") if health else "–"),
                 ("volt", "VSYS", f"{health['vsys']:.2f} V" if health else "–"),
                 ("temp", "TEMP", f"{health['temp']:.1f} °C" if health else "–"),

@@ -2,6 +2,7 @@ WRAP = 1 << 30
 SETTLE_S = 0.03
 MAX_DT_US = 2_000_000
 MIN_DT_US = 8_000
+DEAD_S = 5.0
 
 
 class Punch:
@@ -9,7 +10,7 @@ class Punch:
         self.amask = (1 << n_a) - 1
         self.all = (1 << n_ch) - 1
         self.n_a, self.dist = n_a, dist_mm / 1000
-        self.low, self.ph, self.clear = 0, None, None
+        self.low, self.ph, self.clear, self.dead = 0, None, None, 0
         self.ta = self.tb = self.ach = self.bch = None
         self.n = 0
         self.last = None
@@ -29,8 +30,18 @@ class Punch:
                 self.ph, self.ach, self.bch = "B", None, i
         self.clear = now if not self.low else None
 
+    def set_dead(self, mask, now):
+        if mask == self.dead:
+            return
+        if mask & ~self.dead:
+            self.ph = None
+        self.dead = mask
+        self.low &= ~mask
+        if not self.low and self.clear is None:
+            self.clear = now
+
     def status(self, mask, now):
-        self.low = ~mask & self.all
+        self.low = ~mask & self.all & ~self.dead
         if self.low:
             self.clear = None
         elif self.clear is None:

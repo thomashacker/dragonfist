@@ -100,3 +100,17 @@ def test_counter_and_best():
         t += 0.1
         p.tick(t)
     assert p.n == 3 and p.best == pytest.approx(10.0)
+
+
+def test_dead_channel_ignored():
+    p = Punch(6, 13, 200)
+    p.status(((1 << 13) - 1) & ~(1 << 8), 0.0)
+    assert p.low
+    p.set_dead(1 << 8, 6.0)
+    assert not p.low
+    p.status(((1 << 13) - 1) & ~(1 << 8), 6.1)
+    p.edge(A1, 0, 0, 6.2)
+    p.edge(B1, 0, 40_000, 6.24)
+    p.edge(A1, 1, 60_000, 6.26)
+    p.edge(B1, 1, 70_000, 6.27)
+    assert p.tick(6.4)["ok"]
