@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.4.0] – 2026-11-21
+
+### Added
+- Channels stuck at "interrupted" for more than 5 s are marked DEFEKT and ignored by punch detection; they recover automatically once they see light again
+
 ## [0.3.2] – 2026-11-21
 
 ### Changed
