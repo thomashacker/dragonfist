@@ -19,6 +19,7 @@ from sound import Sfx
 from inputs import Input
 from scenes import W, H, BG, INK, DIM, GREEN, Intro
 
+VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 CFG_FILE = ROOT / "settings.json"
 CFG = dict(audio=None, volume=80, ton=True, abstand=200)
 MONO = "consolas,dejavusansmono,liberationmono,couriernew"
@@ -27,7 +28,7 @@ MONO = "consolas,dejavusansmono,liberationmono,couriernew"
 class Fonts:
     def __init__(self):
         self.f = {k: pygame.font.SysFont(MONO, n, bold=k in ("l", "xl")) for k, n in
-                  (("xs", 13), ("s", 17), ("m", 22), ("l", 34), ("xl", 76))}
+                  (("xs", 17), ("s", 22), ("m", 30), ("l", 46), ("xl", 100))}
         self.cache = {}
 
     def text(self, s, t, pos, size="s", col=INK, anchor="topleft"):
@@ -54,7 +55,7 @@ class App:
             pass
         if a.abstand:
             self.cfg["abstand"] = a.abstand
-        self.font, self.force_mute = Fonts(), a.mute
+        self.font, self.force_mute, self.version = Fonts(), a.mute, VERSION
         self.apply_audio()
         rl = None if a.no_log else RunLog(a.runs, *_names(), "app")
         self.st, self.stop, self.sim = State(rl, self.cfg["abstand"]), threading.Event(), a.sim
@@ -162,9 +163,7 @@ class App:
             hand = {"L": "LINKS", "R": "RECHTS"}.get(r["hand"], "")
             txt = f"{hand}  {r['v'] * 3.6:.1f} km/h" if r["ok"] else f"{hand}  {r['msg']}"
             f.text(s, txt, (W // 2, H - 64), "m", GREEN if r["ok"] else DIM, "center")
-        hint = "↑↓ wählen · OK bestätigen · ZURÜCK"
-        if self.sim:
-            hint += " · A/D ändern · SIM: ← links · → rechts schlagen"
+        hint = "A/D wählen · OK · ZURÜCK · SIM: ← links · → rechts" if self.sim else "←→ wählen · OK · ZURÜCK"
         f.text(s, hint, (W // 2, H - 16), "xs", DIM, "center")
 
     def run(self, shot=None, script=()):

@@ -37,20 +37,25 @@ def test_intro_skip_and_title_back_keeps_running(app):
 
 def test_navigate_all_scenes(app):
     to_title(app)
-    frames(app, ["down", "ok"])
+    frames(app, ["ok"])
+    assert top(app) == "Modes"
+    frames(app, ["right", "ok"])
     assert top(app) == "Arena"
     for k in range(4):
         frames(app, ["ok"])
         assert top(app) == "Placeholder"
-        frames(app, ["back", "down"])
-    frames(app, ["back", "down", "ok"])
+        frames(app, ["back", "right"])
+    frames(app, ["back", "left", "ok"])
+    assert top(app) == "Placeholder" and app.stack[-1].name == "STORY"
+    frames(app, ["back", "back", "right", "ok"])
     assert top(app) == "Settings"
-    frames(app, ["back", "down", "ok"])
+    app.stack[-1].sel = 5
+    frames(app, ["ok"])
     assert top(app) == "Calibration"
     frames(app, ["ok"])
     assert app.st.mark[0] == 0
-    frames(app, ["back", "up", "up", "up", "ok"])
-    assert top(app) == "Placeholder"
+    frames(app, ["back", "back", "left", "ok"])
+    assert top(app) == "Modes"
 
 
 def test_sim_punch(app):
@@ -92,6 +97,11 @@ def test_settings_persist(app):
 def test_quit_from_settings(app):
     to_title(app)
     app.push(scenes.Settings(app))
-    app.stack[-1].sel = 5
+    app.stack[-1].sel = 6
     frames(app, ["ok"])
     assert not app.running
+
+
+def test_version_shown(app):
+    to_title(app)
+    assert app.version.count(".") == 2
