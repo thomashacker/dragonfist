@@ -201,13 +201,13 @@ class Stats(Scene):
 
     def schlaege(self, s, f, k):
         st = self.st
-        f.text(s, str(round(st["n"] * k)), (W // 2, 200), "xl", INK, "center")
-        for j, (hand, name) in enumerate((("L", "LINKS"), ("R", "RECHTS"))):
-            y, v = 320 + j * 70, st["n" + hand.lower()]
-            f.text(s, name, (300, y), "m", HAND[hand], "midright")
-            pygame.draw.rect(s, LO, (330, y - 18, 440, 36), 1)
-            pygame.draw.rect(s, HAND[hand], (330, y - 18, int(440 * v / max(st["n"], 1) * k), 36))
-            f.text(s, str(round(v * k)), (800, y), "m", INK, "midleft")
+        f.text(s, str(round(st["n"] * k)), (W // 2, 250), "xl", INK, "center")
+        f.text(s, "Schläge", (W // 2, 320), "m", DIM, "center")
+        r, links = pygame.Rect(W // 2 - 220, 380, 440, 10), st["nl"] / max(st["n"], 1)
+        pygame.draw.rect(s, LO, r)
+        pygame.draw.rect(s, DIM, (r.x, r.y, int(r.w * links * k), r.h))
+        f.text(s, f"links {st['nl']}", (r.x, r.bottom + 12), "xs", DIM)
+        f.text(s, f"rechts {st['nr']}", (r.right, r.bottom + 12), "xs", DIM, "topright")
         f.text(s, f"Fehlschläge {st['fehl']}", (W // 2, 480), "s", DIM, "center")
 
     def takt(self, s, f, k):
@@ -247,20 +247,19 @@ class Stats(Scene):
         f.text(s, "A  vorne", (r.x, r.bottom + 8), "xs", DIM)
         m = math.ceil(len(st["wege"]) * k)
         for (hand, xa, xb), (ja, jb) in list(zip(st["wege"], self.jitter))[:m]:
-            pygame.draw.line(s, _dunkel(HAND[hand]) if k == 1 else HAND[hand], (r.x + (xa + ja) * r.w, r.bottom),
+            pygame.draw.line(s, _dunkel(GREEN) if k == 1 else GREEN, (r.x + (xa + ja) * r.w, r.bottom),
                              (r.x + (xb + jb) * r.w, r.y), 2)
         if k == 1:
             for hand in "LR":
                 w = [(xa, xb) for h, xa, xb in st["wege"] if h == hand]
                 if w:
                     xa, xb = _mittel([a for a, _ in w]), _mittel([b for _, b in w])
-                    pygame.draw.line(s, HAND[hand], (r.x + xa * r.w, r.bottom), (r.x + xb * r.w, r.y), 7)
+                    pygame.draw.line(s, GREEN, (r.x + xa * r.w, r.bottom), (r.x + xb * r.w, r.y), 7)
         f.text(s, "ZUR MITTE", (720, 160), "s", DIM)
         f.text(s, f"{st['genau'] * k:.0f}%", (720, 186), "xl", INK)
         f.text(s, "STREUUNG", (720, 320), "s", DIM)
-        for j, hand in enumerate("LR"):
-            v = st["streu"].get(hand)
-            f.text(s, f"{hand}  {v:.1f} %" if v is not None else f"{hand}  –", (720, 350 + j * 36), "m", HAND[hand])
+        streu = list(st["streu"].values())
+        f.text(s, f"{_mittel(streu):.1f} %" if streu else "–", (720, 346), "l", GREEN)
 
 
 class Wahl(Tiles):
