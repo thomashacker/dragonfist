@@ -139,6 +139,7 @@ class State:
                 self.sfx.append(k)
                 self.leds.append((k, hand))
             self.punch.events.clear()
+            self.rl and self.rl.flush()
 
     def send(self, cmd):
         with self.lock:
@@ -431,9 +432,6 @@ def main():
             now = time.monotonic()
             ui.draw(st, now)
             pygame.display.flip()
-            if rl:
-                with st.lock:
-                    rl.flush()
             if a.shot and now > t_end:
                 pygame.image.save(screen, a.shot)
                 return
