@@ -145,18 +145,30 @@ def find_port():
             return p.device
 
 
-def reader(st, port, stop):
+STILL_S = 3                 # so lange ohne Zeile -> Pico anstoßen
+WECKEN = b"\r\x03\x03\x02\x04"   # Strg-C ×2 (aus REPL/hängendem Code), Strg-B, Strg-D = main.py neu starten
+
+
+def reader(st, port, stop, still=STILL_S):
     while not stop.is_set():
         dev = port or find_port()
         if dev:
             try:
                 with serial.Serial(dev, 115200, timeout=0.2) as s:
                     st.connect(dev)
+                    zuletzt, stoesse = time.monotonic(), 0
                     while not stop.is_set():
                         line = s.readline()
+                        now = time.monotonic()
                         if line:
                             st.feed(line.decode("ascii", "ignore"))
-            except serial.SerialException:
+                            zuletzt, stoesse = now, 0
+                        elif now - zuletzt > still:
+                            if stoesse == 2:
+                                break                      # zweimal ohne Erfolg -> Port neu öffnen
+                            s.write(WECKEN)
+                            zuletzt, stoesse = now, stoesse + 1
+            except (serial.SerialException, OSError):
                 pass
             if st.port:
                 st.connect(None)
