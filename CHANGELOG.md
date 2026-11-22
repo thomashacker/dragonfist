@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.13.2] – 2026-11-22
+
+### Changed
+- End stats focus on the total: the punches page shows the total large and left/right only once as a small split bar; the accuracy page draws all paths in one colour with one combined spread
+
 ## [0.13.1] – 2026-11-22
 
 ### Added
