@@ -8,7 +8,7 @@ import pygame
 from runlog import schreiben
 from scenes import W, H, BG, INK, DIM, LO, GREEN, SPIEL, Scene, Tiles
 
-BLAU, HAND = (90, 160, 255), {"L": (255, 150, 60), "R": (90, 170, 255)}
+BLAU = (90, 160, 255)
 def _ms(v):
     return f"{v * 1000:.0f}"
 
@@ -123,18 +123,25 @@ def _achse(f, s, r, ymax, unten):
     f.text(s, unten, (r.right, r.bottom + 8), "xs", DIM, "topright")
 
 
+def zaehler(s, f, ok, y, gross=None):
+    nl, v = sum(r["hand"] == "L" for r in ok), _mittel([r["v"] * 3.6 for r in ok if r["v"]])
+    f.text(s, gross or str(len(ok)), (W // 2, y), "xl", INK, "center")
+    f.text(s, f"Schläge  ·  links {nl}  ·  rechts {len(ok) - nl}  ·  Ø {v:.1f} km/h", (W // 2, y + 70), "s", DIM,
+           "center")
+
+
 class Training(Scene):
     music, leds, sounds, bare = "action", "spiel", SPIEL, True
 
     def __init__(self, app):
         super().__init__(app)
-        self.t0, self.punches, self.last = None, [], {}
+        self.t0, self.punches, self.last = None, [], None
 
     def punch(self, r):
         if self.t0 is not None:
             self.punches.append(r | {"t": r["t"] - self.t0})
             if r["v"]:
-                self.last[r["hand"]] = r
+                self.last = r
 
     def on(self, a):
         if a != "back":
@@ -150,15 +157,10 @@ class Training(Scene):
         f = self.app.font
         f.text(s, "TRAINING", (W // 2, 50), "l", INK, "center")
         f.text(s, mmss(now - self.t0), (W // 2, 190), "xl", INK, "center")
-        ok = [r for r in self.punches if r["ok"]]
-        for hand, x, name in (("L", W // 4, "LINKS"), ("R", 3 * W // 4, "RECHTS")):
-            f.text(s, name, (x, 300), "s", HAND[hand], "center")
-            f.text(s, str(sum(r["hand"] == hand for r in ok)), (x, 360), "xl", INK, "center")
-            r = self.last.get(hand)
-            frisch = r and now - r["t"] < 2
-            f.text(s, f"{r['v'] * 3.6:.1f} km/h" if r else "–", (x, 440), "m", GREEN if frisch else DIM, "center")
-        v = _mittel([r["v"] * 3.6 for r in ok if r["v"]])
-        f.text(s, f"GESAMT {len(ok)}  ·  Ø {v:.1f} km/h", (W // 2, 510), "s", DIM, "center")
+        zaehler(s, f, [r for r in self.punches if r["ok"]], 345)
+        r = self.last
+        f.text(s, f"{r['v'] * 3.6:.1f} km/h" if r else "–", (W // 2, 495), "m",
+               GREEN if r and now - r["t"] < 2 else DIM, "center")
         f.text(s, "ZURÜCK  Training beenden", (W // 2, H - 18), "xs", DIM, "center")
 
 
