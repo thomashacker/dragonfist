@@ -132,6 +132,7 @@ class Settings(Scene):
             ("LAUTSTÄRKE", lambda: f"{c['volume']} %",
              lambda d: self.set("volume", min(100, max(0, c["volume"] + 10 * d))), None),
             ("TON", lambda: "AN" if c["ton"] else "AUS", lambda d: self.set("ton", not c["ton"]), None),
+            ("MUSIK", lambda: "AN" if c["musik"] else "AUS", lambda d: self.set("musik", not c["musik"]), None),
             ("TESTTON", lambda: "OK drücken", None, lambda: app.sfx.play("treffer")),
             ("ABSTAND A–B", lambda: f"{c['abstand']:g} mm", lambda d: self.abstand(d), None),
             ("KALIBRIERUNG", lambda: "OK drücken", None, lambda: app.push(Calibration(app))),
@@ -176,8 +177,9 @@ class Settings(Scene):
         f = self.app.font
         f.text(s, "EINSTELLUNGEN", (W // 2, 54), "l", INK, "center")
         pygame.draw.line(s, LO, (W // 2 - 260, 90), (W // 2 + 260, 90))
+        step = min(58, (H - 150) // len(self.rows))
         for k, (label, val, change, _) in enumerate(self.rows):
-            box = pygame.Rect(W // 2 - 400, 110 + k * 58, 800, 50)
+            box = pygame.Rect(W // 2 - 400, 104 + k * step, 800, step - 8)
             on = k == self.sel
             pygame.draw.rect(s, INK, box) if on else pygame.draw.rect(s, LO, box, 1)
             col = BG if on else INK

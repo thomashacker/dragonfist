@@ -13,6 +13,10 @@ def frames(app, acts=(), n=3, dt=0.02):
         app.frame([], time.monotonic())
 
 
+def zeile(st, name):
+    st.sel = [r[0] for r in st.rows].index(name)
+
+
 def top(app):
     return type(app.stack[-1]).__name__
 
@@ -43,7 +47,7 @@ def test_navigate_all_scenes(app):
     assert top(app) == "Training"
     frames(app, ["back", "back", "right", "ok"])
     assert top(app) == "Settings"
-    app.stack[-1].sel = 5
+    zeile(app.stack[-1], "KALIBRIERUNG")
     frames(app, ["ok"])
     assert top(app) == "Calibration"
     frames(app, ["ok"])
@@ -76,16 +80,19 @@ def test_settings_persist(app):
     to_title(app)
     app.push(scenes.Settings(app))
     st = app.stack[-1]
-    st.sel = 1
+    zeile(st, "LAUTSTÄRKE")
     frames(app, ["left", "left"])
-    st.sel = 4
+    zeile(st, "ABSTAND A–B")
     frames(app, ["right"])
     cfg = json.loads(main.CFG_FILE.read_text(encoding="utf-8"))
     assert cfg["volume"] == 60 and cfg["abstand"] == 205
     assert app.st.punch.dist == 0.205
-    st.sel = 2
+    zeile(st, "TON")
     frames(app, ["ok"])
     assert not app.cfg["ton"]
+    zeile(st, "MUSIK")
+    frames(app, ["right"])
+    assert not json.loads(main.CFG_FILE.read_text(encoding="utf-8"))["musik"]
 
 
 def test_quit_from_settings(app):
@@ -112,11 +119,15 @@ def test_music_follows_scene(app):
     assert top(app) == "Training" and app.track == "action"
     frames(app, ["back", "back", "right", "ok"])
     assert top(app) == "Settings" and app.track == "title"
-    app.stack[-1].sel = 5
+    zeile(app.stack[-1], "KALIBRIERUNG")
     frames(app, ["ok"])
     assert top(app) == "Calibration" and app.track is None
-    frames(app, ["back"])
-    app.cfg["ton"] = False
+    frames(app, ["back", "back", "left", "ok"])
+    assert app.track == "title"
+    app.cfg["musik"] = False
+    frames(app, n=1)
+    assert app.track is None and not app.mute
+    app.cfg["musik"], app.cfg["ton"] = True, False
     frames(app, n=1)
     assert app.track is None
 
