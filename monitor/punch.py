@@ -14,12 +14,13 @@ V_MAX = 40 / 3.6                # schneller ist keine Faust auf 20 cm: Schlag z�
 
 class Faust:
     """Ein zusammenhängender Körper im Fenster: A brechen -> B brechen -> beide Ebenen wieder frei = Schlag."""
-    __slots__ = ("hand", "ph", "a", "b", "m", "ta", "tb", "tbr", "tar", "ach", "bch", "clear", "t0", "tan", "arm")
+    __slots__ = ("hand", "ph", "a", "b", "m", "ta", "tb", "tbr", "tar", "ach", "bch", "clear", "t0", "tan", "arm", "tbs")
 
     def __init__(self, hand, ph, i, tus, now):
         self.hand, self.ph, self.a, self.b, self.m, self.t0, self.arm = hand, ph, 0, 0, 0, now, False
         self.ta = self.tan = tus if ph == "A" else None
         self.tb = self.tbr = self.tar = self.clear = None
+        self.tbs = now if ph == "B" else None
         self.ach, self.bch = (i, None) if ph == "A" else (None, i)
 
     def vorwaerts(self):
@@ -111,7 +112,7 @@ class Punch:
             if f.ph == "AB" and not f.b and f.tbr is not None and (tus - f.tbr) % WRAP >= NACH_US:
                 f = self._nachschlag(f, i, tus, now)
             if f.ph == "A":
-                f.ph, f.tb, f.bch = "AB", tus, i
+                f.ph, f.tb, f.bch, f.tbs = "AB", tus, i, now
                 self.events.append(("b", f.hand))
             f.b |= bit
             for g in self.faeuste:
@@ -151,7 +152,7 @@ class Punch:
 
     def _ergebnis(self, f, now):
         r = dict(t=now, ok=False, v=None, vb=None, dt=None, a=f.ach, b=f.bch, hand=f.hand, am=f.m & self.amask,
-                 bm=f.m & ~self.amask)
+                 bm=f.m & ~self.amask, ta_s=f.t0, tb_s=f.tbs)
         if f.ph == "AB":
             dt = None if f.ta is None else (f.tb - f.ta) % WRAP
             r["dt"] = dt

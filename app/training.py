@@ -9,7 +9,25 @@ from runlog import schreiben
 from scenes import W, H, BG, INK, DIM, LO, GREEN, SPIEL, Scene, Tiles
 
 BLAU, HAND = (90, 160, 255), {"L": (255, 150, 60), "R": (90, 170, 255)}
-DISZIPLINEN = ("TRAINING", "ZEITLIMIT", "SERIE", "REAKTION", "ENDLOS")
+def _ms(v):
+    return f"{v * 1000:.0f}"
+
+
+# Spalten (Titel, x, Wert) und Sortierung je Disziplin; besser = kleinerer Schlüssel
+DISZIPLINEN = {
+    "TRAINING": ((("Ø KM/H", 400, lambda e: f"{e['v_avg']:.1f}"), ("MAX", 520, lambda e: f"{e['v_max']:.1f}"),
+                  ("SCHLÄGE", 640, lambda e: str(e["n"])), ("ZEIT", 780, lambda e: mmss(e["dauer"]))),
+                 lambda e: (-e["v_avg"], -e["n"])),
+    "ZEIT": ((("SCHLÄGE", 400, lambda e: str(e["n"])), ("LIMIT", 520, lambda e: f"{e['ziel']} s"),
+              ("PRO S", 640, lambda e: f"{e['takt_avg']:.2f}"), ("Ø KM/H", 780, lambda e: f"{e['v_avg']:.1f}")),
+             lambda e: (-e["takt_avg"], -e["v_avg"])),
+    "SCHLÄGE": ((("ZEIT", 400, lambda e: f"{e['dauer_s']:.2f} s"), ("SCHLÄGE", 540, lambda e: str(e["ziel"])),
+                 ("PRO S", 660, lambda e: f"{e['takt_avg']:.2f}"), ("Ø KM/H", 780, lambda e: f"{e['v_avg']:.1f}")),
+                lambda e: (-e["takt_avg"], -e["v_avg"])),
+    "REAKTION": ((("Ø MS", 400, lambda e: _ms(e["r_avg"])), ("BESTE", 520, lambda e: _ms(e["r_best"])),
+                  ("KOMBO", 640, lambda e: str(e["kombo"])), ("RUNDEN", 760, lambda e: str(e["ziel"]))),
+                 lambda e: (e["r_avg"], e["r_best"])),
+}
 SEITE_S, ANIM_S = 6.5, 2.4
 ALPHA = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
 NAME_LEN = 8
@@ -69,7 +87,7 @@ def eintragen(datei, disz, e):
 
 
 def rangliste(datei, disz):
-    return sorted(laden(datei).get(disz, []), key=lambda e: (-e["v_avg"], -e["n"]))
+    return sorted(laden(datei).get(disz, []), key=DISZIPLINEN[disz][1])
 
 
 def _kurve(s, r, werte, ymax, col, k, w=3):
@@ -146,7 +164,7 @@ class Training(Scene):
 
 class Stats(Scene):
     bare = True
-    TITEL = ("TRAININGSZEIT", "SCHLÄGE", "SCHLÄGE PRO SEKUNDE", "GESCHWINDIGKEIT", "GENAUIGKEIT")
+    TITEL = ("ZEIT", "SCHLÄGE", "SCHLÄGE PRO SEKUNDE", "GESCHWINDIGKEIT", "GENAUIGKEIT")
 
     def __init__(self, app, st):
         super().__init__(app)
@@ -246,9 +264,8 @@ class Stats(Scene):
 
 
 class Wahl(Tiles):
-    title = "TRAINING BEENDET"
-
     def __init__(self, app, st):
+        self.title = f"{st.get('disz', 'TRAINING')} BEENDET"
         super().__init__(app, [("SPEICHERN", "Name eingeben", lambda: app.push(NameEntry(app, st))),
                                ("VERWERFEN", "zurück zum Menü", lambda: app.home())])
 
@@ -277,14 +294,16 @@ class NameEntry(Scene):
             if not name:
                 return self.app.play("back")
             self.app.play("ok")
-            st = self.st
+            st, disz = self.st, self.st.get("disz", "TRAINING")
             e = dict(id=int(time.time() * 1000), name=name, datum=time.strftime("%d.%m.%y"), dauer=round(st["dauer"]),
-                     n=st["n"], nl=st["nl"], nr=st["nr"], v_avg=round(st["v_avg"], 2), vb_avg=round(st["vb_avg"], 2),
-                     v_max=round(st["v_max"], 2), takt_avg=round(st["takt_avg"], 3), genau=round(st["genau"], 1))
-            eintragen(self.app.scores, "TRAINING", e)
+                     dauer_s=round(st["dauer"], 2), n=st["n"], nl=st["nl"], nr=st["nr"], v_avg=round(st["v_avg"], 2),
+                     vb_avg=round(st["vb_avg"], 2), v_max=round(st["v_max"], 2), takt_avg=round(st["takt_avg"], 3),
+                     genau=round(st["genau"], 1))
+            e |= {k: st[k] for k in ("ziel", "kombo", "r_avg", "r_best", "fehlstart") if k in st}
+            eintragen(self.app.scores, disz, e)
             self.app.cfg["name"] = name
             self.app.save()
-            self.app.home(Highscore(self.app, "TRAINING", e["id"]))
+            self.app.home(Highscore(self.app, disz, e["id"]))
 
     def draw(self, s, now):
         f = self.app.font
@@ -302,12 +321,9 @@ class NameEntry(Scene):
 
 
 class Highscore(Scene):
-    SPALTEN = (("#", 70), ("NAME", 120), ("Ø KM/H", 400), ("MAX", 520), ("SCHLÄGE", 640), ("ZEIT", 780),
-               ("DATUM", 890))
-
     def __init__(self, app, disz="TRAINING", neu=None):
         super().__init__(app)
-        self.sel, self.neu = DISZIPLINEN.index(disz), neu
+        self.sel, self.neu = list(DISZIPLINEN).index(disz), neu
 
     def on(self, a):
         if a in ("left", "right"):
@@ -326,10 +342,12 @@ class Highscore(Scene):
             on = i == self.sel
             pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 1)
             f.text(s, d, r.center, "xs", BG if on else DIM, "center")
-        liste = rangliste(self.app.scores, DISZIPLINEN[self.sel])
+        disz = list(DISZIPLINEN)[self.sel]
+        liste, spalten = rangliste(self.app.scores, disz), DISZIPLINEN[disz][0]
         if not liste:
             return f.text(s, "NOCH KEINE EINTRÄGE", (W // 2, 300), "m", DIM, "center")
-        for name, x in self.SPALTEN:
+        kopf = (("#", 70, lambda e: ""), ("NAME", 120, lambda e: e["name"])) + spalten +             (("DATUM", 890, lambda e: e["datum"]),)
+        for name, x, _ in kopf:
             f.text(s, name, (x, 140), "xs", DIM)
         zeilen = list(enumerate(liste[:8], 1))
         rang = next((i for i, e in enumerate(liste, 1) if e["id"] == self.neu), None)
@@ -338,7 +356,5 @@ class Highscore(Scene):
         for j, (i, e) in enumerate(zeilen):
             y = 172 + j * 44
             col = GREEN if e["id"] == self.neu else INK
-            werte = (str(i), e["name"], f"{e['v_avg']:.1f}", f"{e['v_max']:.1f}", str(e["n"]), mmss(e["dauer"]),
-                     e["datum"])
-            for (_, x), v in zip(self.SPALTEN, werte):
-                f.text(s, v, (x, y + 18), "m" if x < 400 else "s", col, "midleft")
+            for name, x, wert in kopf:
+                f.text(s, str(i) if name == "#" else wert(e), (x, y + 18), "m" if x < 400 else "s", col, "midleft")
