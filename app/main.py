@@ -222,7 +222,7 @@ class App:
         for hand, x in (("L", W * 3 // 10), ("R", W * 7 // 10)):
             r = self.toasts.get(hand)
             if r and now - r["t"] < 2.5:
-                txt = f"{hand}  {r['v'] * 3.6:.1f} km/h" if r["ok"] else f"{hand}  {r['msg']}"
+                txt = f"{hand}  {r['v'] * 3.6:.1f} km/h" if r["v"] else f"{hand}  {r['msg']}"
                 f.text(s, txt, (x, H - 64), "m", GREEN if r["ok"] else DIM, "center")
         hint = "A/D wählen · OK · ZURÜCK · SIM: ← links · → rechts" if self.sim else "←→ wählen · OK · ZURÜCK"
         f.text(s, hint, (W // 2, H - 16), "xs", DIM, "center")

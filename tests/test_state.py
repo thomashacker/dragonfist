@@ -85,3 +85,11 @@ def test_stuck_channel_marked_dead(st):
     st.feed("E 8 1 5")
     st.tick(time.monotonic())
     assert not st.ch[8].dead(time.monotonic()) and st.punch.dead == 0
+
+
+def test_hit_without_speed_is_logged_and_shown(st):
+    r = dict(t=0.0, ok=True, v=None, vb=None, dt=None, a=0, b=6, hand="L", msg="TREFFER", n=1, am=1, bm=64)
+    st.rl.punch(r)
+    st.rl.flush(True)
+    s = json.loads((st.rl.dir / "summary.json").read_text(encoding="utf-8"))
+    assert s["schlaege"]["ok"] == 1 and s["schlaege"]["mittel_km_h"] is None

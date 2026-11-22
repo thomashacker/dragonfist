@@ -80,3 +80,22 @@ def test_aufnahme_logs_truth(app, tmp_path):
     assert sc.phase == "zaehlen" and sc.zahl == 2
     frames(app, ["up", "right", "ok"])
     assert sc.phase == "fertig" and notes[-1] == "AUFNAHME ENDE erkannt=2 L=1 R=1 fehl=0 gezaehlt=13"
+
+
+def test_hit_without_speed_in_training_and_overlay(app):
+    to_title(app)
+    frames(app, ["ok", "right", "right", "ok"])
+    tr = app.stack[-1]
+    frames(app, n=1)
+    r = dict(t=time.monotonic(), ok=True, v=None, vb=None, dt=None, a=0, b=6, hand="L", msg="TREFFER", n=1, am=1, bm=64)
+    with app.st.lock:
+        app.st.hits.append(r)
+    frames(app, n=2)
+    app.sim_punch("R")
+    frames(app, n=4)
+    frames(app, ["back"])
+    st = app.stack[-1].st
+    assert st["n"] == 2 and len(st["hin"]) == 1
+    for i in range(5):
+        app.stack[-1].t0 = time.monotonic() - i * SEITE_S - 3
+        frames(app, n=1)
