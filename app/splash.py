@@ -1,4 +1,5 @@
 """Schwarzer Bildschirm mit Status, solange die App nicht läuft (Boot, Update, Neustart)."""
+import signal
 import sys
 import time
 from pathlib import Path
@@ -40,24 +41,26 @@ def main():
     from monitor import font
     pygame.display.init()
     pygame.font.init()
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     gross, klein, win = font(46), font(22), None
     while True:
-        if app_running():
-            if win:
-                pygame.display.quit()
-                pygame.display.init()
-                win = None
-        else:
-            if not win:
-                win = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-                pygame.mouse.set_visible(False)
+        laeuft = app_running()
+        if win:
             pygame.event.pump()
-            w, h = win.get_size()
+        if laeuft and win and pygame.key.get_focused():      # liegt über der App -> weg
+            pygame.display.quit()
+            pygame.display.init()
+            win = None
+        elif not laeuft and not win:
+            win = pygame.display.set_mode((1024, 600), pygame.FULLSCREEN | pygame.SCALED)
+            pygame.display.set_caption("DRAGONFIST")
+            pygame.mouse.set_visible(False)
+        if win:                                              # bleibt hinter der App liegen
             win.fill((0, 0, 0))
-            for f, t, y, c in ((gross, "DRAGONFIST", h // 2 - 30, (120, 120, 120)),
-                               (klein, status() or "STARTET …", h // 2 + 30, (90, 230, 130))):
+            for f, t, y, c in ((gross, "DRAGONFIST", 270, (120, 120, 120)),
+                               (klein, status() or "STARTET …", 330, (90, 230, 130))):
                 img = f.render(t, True, c)
-                win.blit(img, img.get_rect(center=(w // 2, y)))
+                win.blit(img, img.get_rect(center=(512, y)))
             pygame.display.flip()
         time.sleep(0.25)
 
