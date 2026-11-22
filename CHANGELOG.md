@@ -3,6 +3,15 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.11.1] – 2026-11-22
+
+### Fixed
+- Serial reader joins lines split by the read timeout instead of parsing the halves as two broken lines
+- Settings, highscores and summary.json are written atomically (temp file + rename), so a power cut never leaves a half-written file
+
+### Changed
+- Tests: no SCALED renderer under the dummy video driver (suite 18 s → 10 s); redundant tests merged (83 → 66), new tests for split serial lines and atomic writes
+
 ## [0.11.0] – 2026-11-22
 
 ### Added

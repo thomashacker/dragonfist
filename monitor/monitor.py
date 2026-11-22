@@ -169,14 +169,16 @@ def reader(st, port, stop, still=STILL_S):
             try:
                 with serial.Serial(dev, 115200, timeout=0.05) as s:
                     st.connect(dev)
-                    zuletzt, stoesse = time.monotonic(), 0
+                    zuletzt, stoesse, buf = time.monotonic(), 0, b"\n"
                     while not stop.is_set():
                         while st.out:
                             s.write(st.out.popleft().encode() + b"\n")
                         line = s.readline()
                         now = time.monotonic()
                         if line:
-                            st.feed(line.decode("ascii", "ignore"))
+                            buf = line if buf.endswith(b"\n") or len(buf) > 256 else buf + line
+                            if buf.endswith(b"\n"):
+                                st.feed(buf.decode("ascii", "ignore"))
                             zuletzt, stoesse = now, 0
                         elif now - zuletzt > still:
                             if stoesse == 2:

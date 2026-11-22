@@ -26,22 +26,12 @@ def punch(a, b, t0, dt, hold=30_000):
     return [(a, 0, t0), (b, 0, t0 + dt), (a, 1, t0 + dt + hold), (b, 1, t0 + dt + hold + 10_000)]
 
 
-def test_hit_speed_and_hand():
-    p, r = run(punch(A1, B1, 1_000_000, 40_000))
-    assert r["ok"] and r["msg"] == "TREFFER"
-    assert r["v"] == pytest.approx(5.0)
-    assert r["dt"] == 40_000 and r["hand"] == "L" and r["n"] == 1
-    assert p.best == pytest.approx(5.0)
-
-
-def test_right_hand():
-    _, r = run(punch(A6, B7, 0, 20_000))
-    assert r["ok"] and r["hand"] == "R"
-
-
-def test_distance_scales_speed():
-    _, r = run(punch(A1, B1, 0, 40_000), dist=150)
-    assert r["v"] == pytest.approx(3.75)
+@pytest.mark.parametrize("a, b, dist, v, hand", [(A1, B1, 200, 5.0, "L"), (A6, B7, 200, 5.0, "R"),
+                                                  (A1, B1, 150, 3.75, "L")])
+def test_hit_speed_and_hand(a, b, dist, v, hand):
+    p, r = run(punch(a, b, 1_000_000, 40_000), dist)
+    assert r["ok"] and r["msg"] == "TREFFER" and r["n"] == 1 and r["hand"] == hand
+    assert r["v"] == pytest.approx(v) and p.best == pytest.approx(v)
 
 
 def test_not_through():

@@ -14,7 +14,7 @@ import pygame
 
 from monitor import State, font, reader
 from punch import WRAP
-from runlog import RunLog
+from runlog import RunLog, schreiben
 from sound import Sfx
 from inputs import Input
 from netz import Netz
@@ -49,7 +49,7 @@ class App:
     def __init__(self, a):
         pygame.mixer.pre_init(44100, -16, 1, 256)
         pygame.init()
-        flags = pygame.SCALED | (pygame.FULLSCREEN if a.fullscreen else pygame.RESIZABLE)
+        flags = 0 if os.environ.get("SDL_VIDEODRIVER") == "dummy" else             pygame.SCALED | (pygame.FULLSCREEN if a.fullscreen else pygame.RESIZABLE)
         self.screen = pygame.display.set_mode((W, H), flags)
         pygame.display.set_caption("DRAGONFIST")
         pygame.mouse.set_visible(False)
@@ -89,7 +89,7 @@ class App:
             self.st.feed(f"E {ch} {v} {(t + o) % WRAP}")
 
     def save(self):
-        CFG_FILE.write_text(json.dumps(self.cfg, indent=1), encoding="utf-8")
+        schreiben(CFG_FILE, self.cfg)
 
     def audio_devices(self):
         try:

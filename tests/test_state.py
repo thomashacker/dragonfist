@@ -93,3 +93,11 @@ def test_hit_without_speed_is_logged_and_shown(st):
     st.rl.flush(True)
     s = json.loads((st.rl.dir / "summary.json").read_text(encoding="utf-8"))
     assert s["schlaege"]["ok"] == 1 and s["schlaege"]["mittel_km_h"] is None
+
+
+def test_schreiben_replaces_whole_file(tmp_path):
+    from runlog import schreiben
+    f = tmp_path / "highscores.json"
+    schreiben(f, {"a": 1})
+    schreiben(f, {"b": 2})
+    assert json.loads(f.read_text(encoding="utf-8")) == {"b": 2} and not list(tmp_path.glob("*.tmp"))
