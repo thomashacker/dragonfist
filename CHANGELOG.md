@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.10.1] – 2026-11-22
+
+### Fixed
+- Bogus speeds up to 82 km/h: an arm already in plane A that slides one beam sideways (neighbour beam freed < 6 ms before) no longer starts a new punch timer; the punch counts without a speed
+- Speeds above 40 km/h are treated as measurement errors: the punch counts without a speed
+
 ## [0.10.0] – 2026-11-22
 
 ### Changed
