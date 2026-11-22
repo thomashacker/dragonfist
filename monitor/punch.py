@@ -7,14 +7,15 @@ LERN = 0.2                      # wie schnell die typische Position jeder Hand n
 BREITE = 2                      # so viele nebeneinanderliegende A-Strahlen deckt eine Faust höchstens ab
 ZUCKEN_S = 0.08                 # nur A, kürzer als das: kein Fehlschlag, sondern Arm im Vorbeiwischen
 NACH_US = 40_000                # B so lange frei, dann zählt ein neuer B-Stoß bei Arm in A als neuer Schlag
+NACH_MIN_DT_US = 20_000         # kürzer (> 36 km/h) ist beim Nachschlag kein Messwert: Schlag zählt ohne Tempo
 
 
 class Faust:
     """Ein zusammenhängender Körper im Fenster: A brechen -> B brechen -> beide Ebenen wieder frei = Schlag."""
-    __slots__ = ("hand", "ph", "a", "b", "m", "ta", "tb", "tbr", "tar", "ach", "bch", "clear", "t0", "tan")
+    __slots__ = ("hand", "ph", "a", "b", "m", "ta", "tb", "tbr", "tar", "ach", "bch", "clear", "t0", "tan", "arm")
 
     def __init__(self, hand, ph, i, tus, now):
-        self.hand, self.ph, self.a, self.b, self.m, self.t0 = hand, ph, 0, 0, 0, now
+        self.hand, self.ph, self.a, self.b, self.m, self.t0, self.arm = hand, ph, 0, 0, 0, now, False
         self.ta = self.tan = tus if ph == "A" else None
         self.tb = self.tbr = self.tar = self.clear = None
         self.ach, self.bch = (i, None) if ph == "A" else (None, i)
@@ -53,6 +54,7 @@ class Punch:
         else:
             hand = min("LR", key=lambda h: abs(self.hx[h] - x))
         f = Faust(hand, ph, i, tus, now)
+        f.arm = any(g.b for g in andere)
         self.faeuste.append(f)
         ph == "A" and self.events.append(("a", hand))
         return f
@@ -92,15 +94,20 @@ class Punch:
             f.a |= bit
             f.tan = tus
         else:
-            x = self.pos(i)
-            kand = sorted(self.faeuste, key=lambda f: abs(self.x(f) - x) + (0 if f.vorwaerts() else 0.3))
-            f = kand[0] if kand else self._neu("B", i, tus, now)
+            x, nach = self.pos(i), (bit << 1 | bit >> 1) & ~self.amask & self.all
+            f = next((f for f in self.faeuste if f.b & nach), None)
+            if f is None:
+                kand = sorted(self.faeuste, key=lambda f: abs(self.x(f) - x) + (0 if f.vorwaerts() else 0.3))
+                f = kand[0] if kand else self._neu("B", i, tus, now)
             if f.ph == "AB" and not f.b and f.tbr is not None and (tus - f.tbr) % WRAP >= NACH_US:
                 f = self._nachschlag(f, i, tus, now)
             if f.ph == "A":
                 f.ph, f.tb, f.bch = "AB", tus, i
                 self.events.append(("b", f.hand))
             f.b |= bit
+            for g in self.faeuste:
+                g.arm |= g.ph == "A"
+            f.arm = False
         f.m |= bit
         f.clear = None
 
@@ -126,7 +133,8 @@ class Punch:
         self.faeuste.remove(f)
         self.fertig.append(self._ergebnis(f, now))
         g = Faust(f.hand, "A", f.ach, tus, now)
-        frisch = f.tan is not None and (f.tan - f.tbr) % WRAP < (tus - f.tbr) % WRAP
+        frisch = f.tan is not None and (f.tan - f.tbr) % WRAP < (tus - f.tbr) % WRAP \
+            and (tus - f.tan) % WRAP >= NACH_MIN_DT_US
         g.ta = g.tan = f.tan if frisch else None
         g.a = g.m = f.a
         self.faeuste.append(g)
@@ -163,6 +171,6 @@ class Punch:
         out, self.fertig = self.fertig, []
         for f in [f for f in self.faeuste if f.clear is not None and now - f.clear >= SETTLE_S]:
             self.faeuste.remove(f)
-            if not (f.ph == "A" and f.clear - f.t0 < ZUCKEN_S):
+            if not (f.ph == "A" and (f.arm or f.clear - f.t0 < ZUCKEN_S)):
                 out.append(self._ergebnis(f, now))
         return out
