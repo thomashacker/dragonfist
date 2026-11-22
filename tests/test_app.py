@@ -97,7 +97,7 @@ def test_settings_persist(app):
 def test_quit_from_settings(app):
     to_title(app)
     app.push(scenes.Settings(app))
-    app.stack[-1].sel = 6
+    app.stack[-1].sel = len(app.stack[-1].rows) - 1
     frames(app, ["ok"])
     assert not app.running
 

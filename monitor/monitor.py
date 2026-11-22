@@ -77,6 +77,10 @@ class State:
             if self.rl:
                 self.mark = (self.rl.mark(), time.monotonic())
 
+    def note(self, s):
+        with self.lock:
+            self.rl and self.rl.note(s)
+
     def reset(self):
         self.ch = [Kanal() for _ in GP]
         self.punch.reset()

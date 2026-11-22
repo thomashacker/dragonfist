@@ -114,6 +114,11 @@ class Arena(Tiles):
                                for n in ("ZEITLIMIT", "SERIE", "REAKTION", "ENDLOS")])
 
 
+def _aufnahme(app):
+    from aufnahme import Aufnahme
+    return Aufnahme(app)
+
+
 class Settings(Scene):
     def __init__(self, app):
         super().__init__(app)
@@ -127,6 +132,7 @@ class Settings(Scene):
             ("TESTTON", lambda: "OK drücken", None, lambda: app.sfx.play("treffer")),
             ("ABSTAND A–B", lambda: f"{c['abstand']:g} mm", lambda d: self.abstand(d), None),
             ("KALIBRIERUNG", lambda: "OK drücken", None, lambda: app.push(Calibration(app))),
+            ("SCHLAG-AUFNAHME", lambda: "OK drücken", None, lambda: app.push(_aufnahme(app))),
             ("APP BEENDEN", lambda: "", None, lambda: setattr(app, "running", False)),
         ]
 
