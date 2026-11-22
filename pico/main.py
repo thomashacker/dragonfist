@@ -1,8 +1,8 @@
-import sys, time, machine
+import sys, time, machine, rp2
 from machine import Pin, ADC, mem32
 from ubinascii import hexlify
 
-VERSION = 1
+VERSION = 2
 A = (0, 3, 6, 9, 12, 15)
 B = (28, 27, 22, 21, 14, 18, 17)
 CH = A + B
@@ -15,6 +15,61 @@ vsys = ADC(Pin(29))
 temp = ADC(4)
 uid = hexlify(machine.unique_id()).decode()
 w = sys.stdout.write
+
+N_LED, HELL = 19, 0.35
+RUHE, BRUCH = (40, 0, 0), (255, 140, 40)
+
+
+@rp2.asm_pio(sideset_init=rp2.PIO.OUT_LOW, out_shiftdir=rp2.PIO.SHIFT_LEFT, autopull=True, pull_thresh=24,
+             fifo_join=rp2.PIO.JOIN_TX)
+def ws2812():
+    wrap_target()
+    label("bit")
+    out(x, 1).side(0)[2]
+    jmp(not_x, "null").side(1)[1]
+    jmp("bit").side(1)[4]
+    label("null")
+    nop().side(0)[4]
+    wrap()
+
+
+def wort(c):
+    r, g, b = (int(v * HELL) for v in c)
+    return (g << 16 | r << 8 | b) << 8
+
+
+class Streifen:
+    """Füttert den PIO-FIFO stückweise aus der Hauptschleife – blockiert die Abtastung nie."""
+
+    def __init__(self, nr, pin):
+        self.sm = rp2.StateMachine(nr, ws2812, freq=8_000_000, sideset_base=Pin(pin))
+        self.sm.active(1)
+        self.buf, self.i, self.farbe = [0] * N_LED, N_LED, None
+
+    def setze(self, c, n=N_LED):
+        if (c, n) != self.farbe:
+            self.farbe = (c, n)
+            v = wort(c)
+            self.buf = [v if k < n else 0 for k in range(N_LED)]
+            self.i = 0
+            if self not in AKTIV:
+                AKTIV.append(self)
+
+    def pumpe(self):
+        while self.i < N_LED and self.sm.tx_fifo() < 8:
+            self.sm.put(self.buf[self.i])
+            self.i += 1
+
+
+AKTIV = []
+LED = (Streifen(0, 16), Streifen(1, 19))
+for k in range(N_LED + 1):
+    for s in LED:
+        s.setze(RUHE, k)
+        while s.i < N_LED:
+            s.pumpe()
+    time.sleep_ms(25)
+SEITE = (0x3C7, 0x1E38)    # Kanalmasken links (A1–A3, B1–B4) / rechts (A4–A6, B4–B7)
 
 PM = 0
 for g in CH:
@@ -34,6 +89,7 @@ def temp_dc():
     return int((27 - (v - 0.706) / 0.001721) * 10)
 
 
+wdt = machine.WDT(timeout=8000)    # hängt das Programm, startet der Pico neu (mpremote cp + reset passt darunter)
 last = mem32[SIO_IN] & PM
 t_s = t_h = t_i = time.ticks_ms()
 n = 0
@@ -46,10 +102,18 @@ while True:
             if d >> g & 1:
                 w("E %d %d %d\n" % (i, raw >> g & 1, t))
         last = raw
+        m = chmask(raw)
+        for s, k in zip(LED, SEITE):
+            s.setze(RUHE if m & k == k else BRUCH)
+    if AKTIV:
+        for s in AKTIV:
+            s.pumpe()
+        AKTIV[:] = [s for s in AKTIV if s.i < N_LED]
     n += 1
     now = time.ticks_ms()
     if time.ticks_diff(now, t_s) >= 50:
         t_s = now
+        wdt.feed()
         w("S %x\n" % chmask(raw))
         dt = time.ticks_diff(now, t_h)
         if dt >= 500:

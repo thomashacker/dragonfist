@@ -37,3 +37,36 @@ def test_reader_stops_on_exit(tmp_path, monkeypatch):
                            runs=str(tmp_path)))
     a.run(str(tmp_path / "s.png"))
     assert not a.reader.is_alive()
+
+
+def test_reader_wakes_silent_pico(monkeypatch):
+    import threading
+    import monitor
+
+    geschrieben = []
+
+    class Stumm:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def readline(self):
+            time.sleep(0.01)
+            return b""
+
+        def write(self, b):
+            geschrieben.append(b)
+
+    monkeypatch.setattr(monitor.serial, "Serial", Stumm)
+    st, stop = monitor.State(None, 200), threading.Event()
+    th = threading.Thread(target=monitor.reader, args=(st, "x", stop, 0.05))
+    th.start()
+    time.sleep(0.4)
+    stop.set()
+    th.join(2)
+    assert geschrieben and geschrieben[0] == monitor.WECKEN
