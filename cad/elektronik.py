@@ -67,6 +67,7 @@ def pin_belegung():
         # gleichmäßig über die Reihe verteilen, damit jeder Sensor einen Pin nahe seiner x-Lage bekommt
         auswahl = [reihen[ebene][round(i * (len(reihen[ebene]) - 1) / max(len(xs) - 1, 1))] for i in range(len(xs))]
         for x, gp in zip(sorted(xs), auswahl):
+            gp = P.GPIO_UMZUG.get(gp, gp)
             seite = "links" if x < 0 else ("rechts" if x > 0 else "Mitte")
             pins.append({"gpio": gp, "pin": PICO_PINS.index(f"GP{gp}") + 1, "ebene": ebene, "x_mm": x,
                          "seite": seite, "nr": len(pins) + 1})

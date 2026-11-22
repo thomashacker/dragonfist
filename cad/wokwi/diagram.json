@@ -288,7 +288,7 @@
     ],
     [
       "btnB3:1.l",
-      "pico:GP26",
+      "pico:GP22",
       "gold",
       []
     ],
@@ -312,7 +312,7 @@
     ],
     [
       "btnB5:1.l",
-      "pico:GP20",
+      "pico:GP14",
       "gold",
       []
     ],

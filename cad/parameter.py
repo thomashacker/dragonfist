@@ -139,6 +139,7 @@ SENSORKABEL = 250             # Kabellänge am Sensor (Datenblatt)
 # LEDs: WS2812B-Streifen auf der Vorderseite der vorderen Alu-Pfosten (10 mm breit wie das Rohr),
 # also links und rechts am Fensterrand im Blick des Kindes
 GPIO_LED = {"links": 16, "rechts": 19}   # je ein Datenpin, keine Kette übers Fenster
+GPIO_UMZUG = {26: 22, 20: 14}            # B3, B5 auf Nachbarpins umgesteckt (v0.3.2)
 LED_PRO_M = 60                # WS2812B 60 LEDs/m, 5 V
 LED_STROM_MA = 60             # pro LED bei voller weißer Helligkeit
 LED_HELLIGKEIT = 0.35         # Firmware begrenzt darauf (schont Netzteil und Augen)
