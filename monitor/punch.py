@@ -14,7 +14,8 @@ class Seite:
 
     def __init__(self, hand, a, b, shared):
         self.hand, self.a, self.b, self.shared = hand, a, b, shared
-        self.ph = self.ta = self.tb = self.ach = self.bch = self.clear = None
+        self.ph = self.ta = self.tb = self.ach = self.bch = self.clear = self.tbr = self.tar = None
+        self.m = 0
 
     def mask(self):
         m = self.a | self.b
@@ -53,19 +54,27 @@ class Punch:
         bit = 1 << i
         if v:
             self.low &= ~bit
+            for s in self.seiten:
+                if s.ph == "AB":
+                    if bit & s.b and not self.low & s.b:
+                        s.tbr = tus
+                    elif bit & s.a and not self.low & s.a:
+                        s.tar = tus
         else:
             self.low |= bit
             for s in self.seiten:
                 if bit & s.a:
                     if s.ph is None:
-                        s.ph, s.ta, s.ach, s.bch = "A", tus, i, None
+                        s.ph, s.ta, s.ach, s.bch, s.tbr, s.tar, s.m = "A", tus, i, None, None, None, 0
                         self.events.append(("a", s.hand))
                 elif bit & s.b:
                     if s.ph == "A":
                         s.ph, s.tb, s.bch = "AB", tus, i
                         self.events.append(("b", s.hand))
                     elif s.ph is None and not bit & s.shared:
-                        s.ph, s.ach, s.bch = "B", None, i
+                        s.ph, s.ach, s.bch, s.m = "B", None, i, 0
+                if s.ph and bit & (s.a | s.b):
+                    s.m |= bit
         self._clear(now)
 
     def set_dead(self, mask, now):
@@ -89,7 +98,8 @@ class Punch:
             if s.ph is None or s.clear is None or now - s.clear < SETTLE_S:
                 continue
             ph, s.ph = s.ph, None
-            r = dict(t=now, ok=False, v=None, dt=None, a=s.ach, b=s.bch, hand=s.hand)
+            r = dict(t=now, ok=False, v=None, vb=None, dt=None, a=s.ach, b=s.bch, hand=s.hand, am=s.m & s.a,
+                     bm=s.m & s.b)
             if ph == "AB":
                 dt = (s.tb - s.ta) % WRAP
                 r["dt"] = dt
@@ -102,6 +112,10 @@ class Punch:
                     v = self.dist * 1e6 / dt
                     self.best = max(self.best, v)
                     r.update(ok=True, v=v, n=self.n, msg="TREFFER")
+                    if s.tbr is not None and s.tar is not None:
+                        db = (s.tar - s.tbr) % WRAP
+                        if MIN_DT_US <= db <= MAX_DT_US:
+                            r["vb"] = self.dist * 1e6 / db
             else:
                 r["msg"] = "NICHT DURCH" if ph == "A" else "RÜCKWÄRTS"
             self.events.append(("punkt" if r["ok"] else "fehl", s.hand))

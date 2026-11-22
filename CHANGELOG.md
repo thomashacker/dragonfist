@@ -3,6 +3,14 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.8.0] – 2026-11-22
+
+### Added
+- Training mode (START → TRAINING): endless, no limits, ends with ZURÜCK; live time, punches and last speed per hand
+- Animated result pages in a loop: training time, punches (total, left, right, misses), punches per second curve with average and peak, speed curve out and back with averages and maximum, punch paths through the window with accuracy to the centre and spread per hand
+- Save with an arcade name entry or discard; highscore table per discipline, reachable from the main menu
+- Punch results carry retraction speed and the beams broken on each plane
+
 ## [0.7.0] – 2026-11-22
 
 ### Changed

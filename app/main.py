@@ -22,6 +22,7 @@ from splash import hold_lock, status
 
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 CFG_FILE = ROOT / "settings.json"
+SCORES = ROOT / "highscores.json"
 MUSIC = ROOT / "app" / "assets" / "music"
 FARBE = dict(a=(255, 90, 0), b=(0, 255, 0), punkt=(0, 80, 255), fehl=(255, 0, 0))
 HALTEN = dict(punkt=0.8, fehl=0.8)
@@ -58,7 +59,7 @@ class App:
             pass
         if a.abstand:
             self.cfg["abstand"] = a.abstand
-        self.font, self.force_mute, self.version = Fonts(), a.mute, VERSION
+        self.font, self.force_mute, self.version, self.scores = Fonts(), a.mute, VERSION, SCORES
         self.apply_audio()
         rl = None if a.no_log else RunLog(a.runs, *_names(), "app")
         self.st, self.stop, self.sim = State(rl, self.cfg["abstand"]), threading.Event(), a.sim
@@ -79,10 +80,10 @@ class App:
         self.st.feed(f"E {ch} {v} {int(time.perf_counter() * 1e6) % WRAP}")
 
     def sim_punch(self, hand):
-        dt = int(self.cfg["abstand"] / 1000 / (random.uniform(10, 32) / 3.6) * 1e6)
-        a, b = (0, 6) if hand == "L" else (5, 12)
+        dt, db = (int(self.cfg["abstand"] / 1000 / (random.uniform(lo, hi) / 3.6) * 1e6) for lo, hi in ((10, 32), (6, 18)))
+        a, b = random.choice(((0, 6), (1, 7), (2, 8), (2, 9)) if hand == "L" else ((5, 12), (4, 11), (3, 10), (3, 9)))
         t = int(time.perf_counter() * 1e6)
-        for ch, v, o in ((a, 0, 0), (b, 0, dt), (a, 1, dt + 30000), (b, 1, dt + 45000)):
+        for ch, v, o in ((a, 0, 0), (b, 0, dt), (b, 1, dt + 30000), (a, 1, dt + 30000 + db)):
             self.st.feed(f"E {ch} {v} {(t + o) % WRAP}")
 
     def save(self):
@@ -139,6 +140,10 @@ class App:
     def pop(self):
         if len(self.stack) > 1:
             self.stack.pop()
+
+    def home(self, sc=None):
+        del self.stack[1:]
+        sc and self.push(sc)
 
     def replace(self, sc, fade=0.0):
         self.stack[-1] = sc

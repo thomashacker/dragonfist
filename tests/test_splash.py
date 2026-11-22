@@ -36,6 +36,8 @@ def test_reader_stops_on_exit(tmp_path, monkeypatch):
     a = main.App(Namespace(sim=False, port="nichtda", abstand=None, fullscreen=False, mute=True, no_log=True,
                            runs=str(tmp_path)))
     a.run(str(tmp_path / "s.png"))
+    import pygame
+    pygame.quit()
     assert not a.reader.is_alive()
 
 

@@ -152,3 +152,12 @@ def test_shared_middle_beam_only_counts_for_active_side():
 def test_miss_event():
     p, r = run([(A1, 0, 0), (A1, 1, 50_000)])
     assert p.events == [("a", "L"), ("fehl", "L")]
+
+
+def test_retraction_speed_and_path_masks():
+    p = Punch(6, 13, 200)
+    for ch, v, tus, t in ((A1, 0, 0, 0.0), (1, 0, 2_000, 0.002), (B1, 0, 40_000, 0.04), (B1, 1, 100_000, 0.1),
+                          (1, 1, 150_000, 0.15), (A1, 1, 180_000, 0.18)):
+        p.edge(ch, v, tus, t)
+    r = one(p, 0.3)
+    assert r["vb"] == pytest.approx(0.2 / 0.08) and r["am"] == 0b11 and r["bm"] == 1 << B1
