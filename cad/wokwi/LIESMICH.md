@@ -31,8 +31,8 @@ Die Geschwindigkeit ist hier natürlich die deiner Finger, nicht die einer Faust
 | A6 | +150 mm | GP15 | `6` |
 | B1 | -165 mm | GP28 | `a` |
 | B2 | -110 mm | GP27 | `s` |
-| B3 | -55 mm | GP26 | `d` |
+| B3 | -55 mm | GP22 | `d` |
 | B4 | +0 mm | GP21 | `f` |
-| B5 | +55 mm | GP20 | `g` |
+| B5 | +55 mm | GP14 | `g` |
 | B6 | +110 mm | GP18 | `h` |
 | B7 | +165 mm | GP17 | `j` |
