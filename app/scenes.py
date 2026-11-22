@@ -73,12 +73,14 @@ class Tiles(Scene):
 
 
 class Title(Tiles):
-    size, cy = 300, 360
+    size, cy = 270, 360
 
     def __init__(self, app):
+        from training import Highscore
         super().__init__(app, [
             ("START", "", lambda: app.push(Modes(app))),
             ("EINSTELLUNGEN", "", lambda: app.push(Settings(app))),
+            ("HIGHSCORE", "", lambda: app.push(Highscore(app))),
         ])
 
     def draw(self, s, now):
@@ -96,9 +98,11 @@ class Modes(Tiles):
     title = "START"
 
     def __init__(self, app):
+        from training import Training
         super().__init__(app, [
             ("STORY", "Abenteuer", lambda: app.push(Placeholder(app, "STORY"))),
             ("ARENA", "Wettkampf", lambda: app.push(Arena(app))),
+            ("TRAINING", "Endlos", lambda: app.push(Training(app))),
         ])
 
 

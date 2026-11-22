@@ -16,6 +16,7 @@ sys.path[:0] = [str(ROOT / "app"), str(ROOT / "monitor")]
 def app(tmp_path, monkeypatch):
     import main
     monkeypatch.setattr(main, "CFG_FILE", tmp_path / "settings.json")
+    monkeypatch.setattr(main, "SCORES", tmp_path / "highscores.json")
     a = main.App(Namespace(sim=True, port=None, abstand=None, fullscreen=False, mute=True, no_log=True,
                            runs=str(tmp_path)))
     a.running = True
