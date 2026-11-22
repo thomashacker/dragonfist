@@ -37,7 +37,7 @@ def auswerten(punches, dauer, n_a=6, n_ch=13):
     takt = [0.0] * max(1, math.ceil(dauer / b))
     for r in ok:
         takt[min(len(takt) - 1, int(r["t"] // b))] += 1 / b
-    hin = [r["v"] * 3.6 for r in ok]
+    hin = [r["v"] * 3.6 for r in ok if r["v"]]
     zur = [r["vb"] * 3.6 for r in ok if r.get("vb")]
     wege = [(r["hand"], xa, xb) for r in ok
             for xa, xb in [(_lage(r["am"], 0, n_a), _lage(r["bm"], n_a, n_ch - n_a))] if xa is not None and xb is not None]
@@ -114,7 +114,7 @@ class Training(Scene):
     def punch(self, r):
         if self.t0 is not None:
             self.punches.append(r | {"t": r["t"] - self.t0})
-            if r["ok"]:
+            if r["v"]:
                 self.last[r["hand"]] = r
 
     def on(self, a):
@@ -138,7 +138,7 @@ class Training(Scene):
             r = self.last.get(hand)
             frisch = r and now - r["t"] < 2
             f.text(s, f"{r['v'] * 3.6:.1f} km/h" if r else "–", (x, 440), "m", GREEN if frisch else DIM, "center")
-        v = _mittel([r["v"] * 3.6 for r in ok])
+        v = _mittel([r["v"] * 3.6 for r in ok if r["v"]])
         f.text(s, f"GESAMT {len(ok)}  ·  Ø {v:.1f} km/h", (W // 2, 510), "s", DIM, "center")
         f.text(s, "ZURÜCK  Training beenden", (W // 2, H - 18), "xs", DIM, "center")
 

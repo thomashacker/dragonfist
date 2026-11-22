@@ -307,7 +307,7 @@ class Ui:
         else:
             msg, col = "BEREIT", self.MID
         self.text(msg, (r.centerx, r.y + 28), "s", col, "midtop")
-        v = last if last and last["ok"] else None
+        v = last if last and last["v"] else None
         self.text(f"{v['v'] * 3.6:.1f}" if v else "–", (r.centerx, r.y + 52), "xl", self.OK if v and fresh else self.FG,
                   "midtop")
         self.text("km/h", (r.centerx, r.y + 96), "s", self.MID, "midtop")

@@ -23,7 +23,7 @@ class RunLog:
         self._pu = open(self.dir / "punches.csv", "w", buffering=1, newline="", encoding="utf-8")
         self.pu = csv.writer(self._pu)
         self.pu.writerow(["t", "nr", "ok", "status", "dt_us", "m_s", "km_h", "a", "b"])
-        self.punches, self.v_max, self.v_sum = [0, 0], 0.0, 0.0
+        self.punches, self.v_max, self.v_sum, self.n_v = [0, 0], 0.0, 0.0, 0
         self.ch = [dict(brueche=0, glitches=0, min_us=None, max_us=0, sum_us=0, n=0, t0=None, erkannt=False)
                    for _ in names]
         self.marks, self.info, self.port = [], None, None
@@ -82,15 +82,16 @@ class RunLog:
             r[1] = h[k] if r[1] is None else max(r[1], h[k])
 
     def punch(self, r):
-        ok = r["ok"]
+        ok, v = r["ok"], r["v"]
         self.punches[ok] += 1
-        if ok:
-            self.v_max = max(self.v_max, r["v"])
-            self.v_sum += r["v"]
+        if v:
+            self.v_max = max(self.v_max, v)
+            self.v_sum += v
+            self.n_v += 1
         self.pu.writerow([f"{self.t():.4f}", r.get("n", ""), int(ok), r["msg"], "" if r["dt"] is None else r["dt"],
-                          f"{r['v']:.3f}" if ok else "", f"{r['v'] * 3.6:.1f}" if ok else "",
+                          f"{v:.3f}" if v else "", f"{v * 3.6:.1f}" if v else "",
                           "" if r["a"] is None else self.names[r["a"]], "" if r["b"] is None else self.names[r["b"]]])
-        self.note(f"PUNCH {r['msg']}" + (f" {r['v']:.2f} m/s" if ok else ""))
+        self.note(f"PUNCH {r['msg']}" + (f" {v:.2f} m/s" if v else ""))
 
     def mark(self):
         n = len(self.marks) + 1
@@ -111,7 +112,7 @@ class RunLog:
                     stream_luecken=self.gaps, max_luecke_s=round(self.gap_max, 3), vbus_ausfaelle=self.vbus_lost,
                     health={k: v for k, v in self.rng.items()}, marker=self.marks, kanaele=kan,
                     schlaege=dict(ok=self.punches[1], verworfen=self.punches[0], max_km_h=round(self.v_max * 3.6, 1),
-                                  mittel_km_h=round(self.v_sum / self.punches[1] * 3.6, 1) if self.punches[1] else None))
+                                  mittel_km_h=round(self.v_sum / self.n_v * 3.6, 1) if self.n_v else None))
 
     def flush(self, force=False):
         if force or time.monotonic() >= self.next_sum:

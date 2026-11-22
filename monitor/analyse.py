@@ -165,7 +165,7 @@ def bild(ev, res, t0, t1, datei, px_s=500, zeile_s=2.0):
             if za <= r["t"] <= za + zeile_s:
                 c = farbe[r["hand"]] if r["ok"] else (230, 50, 50)
                 pygame.draw.line(s, c, (x(r["t"]), y0 + kopf), (x(r["t"]), y0 + kopf + N * rh), 2)
-                txt = f"{r['hand']} {r['v'] * 3.6:.0f}" if r["ok"] else f"{r['hand']} {r['msg'][:5]}"
+                txt = f"{r['hand']} {r['v'] * 3.6:.0f}" if r["v"] else f"{r['hand']} {r['msg'][:5]}"
                 s.blit(f.render(txt, True, c), (x(r["t"]) + 3, y0 + kopf + N * rh + 4))
     pygame.image.save(s, str(datei))
     print("->", datei)
