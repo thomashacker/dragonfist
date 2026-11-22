@@ -3,6 +3,18 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.9.0] – 2026-11-22
+
+### Changed
+- Punch detection tracks fists instead of fixed left/right halves: a fist is at most two A beams wide, a B beam belongs to the nearest fist, the hand follows the other fist and each hand's learned position. Diagonal punches through the middle no longer cause a false miss on the other side, and fast alternating punches are no longer merged (real recording at ~7 punches/s: 106 instead of 72 detected, 53/53 left/right)
+- A fist that pulls back out of B while the arm stays in A and pushes through B again counts as a new punch
+- A short wipe through A without reaching B (< 80 ms) is ignored instead of counted as a miss
+
+### Added
+- Settings → SCHLAG-AUFNAHME: punch for 15/30/60 s, then enter how many punches you really did; both go into the run log
+- `monitor/analyse.py`: replays a run log through the punch logic like the live app, with block summary, independent B-entry count, per-recording comparison, event list and timeline image
+- Regression test replaying a real fast training block
+
 ## [0.8.0] – 2026-11-22
 
 ### Added

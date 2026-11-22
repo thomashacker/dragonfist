@@ -59,3 +59,24 @@ def test_discard_goes_home(app):
     frames(app, n=3)
     frames(app, ["back", "ok", "right", "ok"])
     assert top(app) == "Title" and not app.scores.exists()
+
+
+def test_aufnahme_logs_truth(app, tmp_path):
+    from aufnahme import Aufnahme
+    notes = []
+    app.st.note = notes.append
+    app.push(Aufnahme(app))
+    sc = app.stack[-1]
+    frames(app, ["left", "ok"])
+    assert sc.dauer == 15 and sc.phase == "countdown"
+    sc.t0 = time.monotonic() - 4
+    frames(app, n=1)
+    assert sc.phase == "laeuft" and notes == ["AUFNAHME START dauer=15"]
+    app.sim_punch("L")
+    app.sim_punch("R")
+    frames(app, n=4)
+    sc.t0 = time.monotonic() - 16
+    frames(app, n=1)
+    assert sc.phase == "zaehlen" and sc.zahl == 2
+    frames(app, ["up", "right", "ok"])
+    assert sc.phase == "fertig" and notes[-1] == "AUFNAHME ENDE erkannt=2 L=1 R=1 fehl=0 gezaehlt=13"

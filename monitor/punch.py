@@ -1,124 +1,168 @@
 WRAP = 1 << 30
-SETTLE_S = 0.03
+SETTLE_S = 0.025
 MAX_DT_US = 2_000_000
 MIN_DT_US = 8_000
 DEAD_S = 5.0
+LERN = 0.2                      # wie schnell die typische Position jeder Hand nachgeführt wird
+BREITE = 2                      # so viele nebeneinanderliegende A-Strahlen deckt eine Faust höchstens ab
+ZUCKEN_S = 0.08                 # nur A, kürzer als das: kein Fehlschlag, sondern Arm im Vorbeiwischen
+NACH_US = 40_000                # B so lange frei, dann zählt ein neuer B-Stoß bei Arm in A als neuer Schlag
 
 
-def _bits(r):
-    return sum(1 << i for i in r)
+class Faust:
+    """Ein zusammenhängender Körper im Fenster: A brechen -> B brechen -> beide Ebenen wieder frei = Schlag."""
+    __slots__ = ("hand", "ph", "a", "b", "m", "ta", "tb", "tbr", "tar", "ach", "bch", "clear", "t0", "tan")
 
+    def __init__(self, hand, ph, i, tus, now):
+        self.hand, self.ph, self.a, self.b, self.m, self.t0 = hand, ph, 0, 0, 0, now
+        self.ta = self.tan = tus if ph == "A" else None
+        self.tb = self.tbr = self.tar = self.clear = None
+        self.ach, self.bch = (i, None) if ph == "A" else (None, i)
 
-class Seite:
-    """Eine Hand: A brechen -> B brechen -> wieder ganz frei = Schlag."""
-
-    def __init__(self, hand, a, b, shared):
-        self.hand, self.a, self.b, self.shared = hand, a, b, shared
-        self.ph = self.ta = self.tb = self.ach = self.bch = self.clear = self.tbr = self.tar = None
-        self.m = 0
-
-    def mask(self):
-        m = self.a | self.b
-        return m if self.ph else m & ~self.shared
+    def vorwaerts(self):
+        return self.ph == "A" or bool(self.b)
 
 
 class Punch:
     def __init__(self, n_a, n_ch, dist_mm):
-        nb, ha = n_ch - n_a, n_a // 2
-        hb = (nb + 1) // 2
-        self.amask, self.all, self.n_a, self.dist = (1 << n_a) - 1, (1 << n_ch) - 1, n_a, dist_mm / 1000
-        links = _bits(range(n_a, n_a + hb))
-        rechts = _bits(range(n_ch - hb, n_ch))
-        shared = links & rechts
-        self.seiten = (Seite("L", _bits(range(ha)), links, shared), Seite("R", _bits(range(ha, n_a)), rechts, shared))
+        self.n_a, self.n_b = n_a, n_ch - n_a
+        self.amask, self.all, self.dist = (1 << n_a) - 1, (1 << n_ch) - 1, dist_mm / 1000
+        self.faeuste, self.hx = [], {"L": 0.35, "R": 0.65}
         self.low, self.dead, self.n, self.last, self.best = 0, 0, 0, None, 0.0
-        self.events = []
+        self.events, self.fertig = [], []
 
     @property
     def ph(self):
-        return next((s.ph for s in self.seiten if s.ph), None)
+        return next((f.ph for f in self.faeuste), None)
 
     def reset(self):
-        self.low = 0
-        for s in self.seiten:
-            s.ph = None
+        self.low, self.faeuste, self.fertig = 0, [], []
 
-    def _clear(self, now):
-        for s in self.seiten:
-            if self.low & s.mask():
-                s.clear = None
-            elif s.clear is None:
-                s.clear = now
+    def pos(self, i):
+        return (i + 0.5) / self.n_a if i < self.n_a else (i - self.n_a + 0.5) / self.n_b
+
+    def x(self, f):
+        bits = [i for i in range(self.n_a) if f.m >> i & 1] or [i for i in range(self.n_a, self.n_a + self.n_b)
+                                                                    if f.m >> i & 1]
+        return sum(map(self.pos, bits)) / len(bits)
+
+    def _neu(self, ph, i, tus, now):
+        x, andere = self.pos(i), self.faeuste
+        if len(andere) == 1:
+            hand = "R" if andere[0].hand == "L" else "L"
+        else:
+            hand = min("LR", key=lambda h: abs(self.hx[h] - x))
+        f = Faust(hand, ph, i, tus, now)
+        self.faeuste.append(f)
+        ph == "A" and self.events.append(("a", hand))
+        return f
+
+    def _besitzer_a(self, i):
+        bit = 1 << i
+        for f in self.faeuste:
+            if f.m & bit or f.ph == "B":
+                return f
+        for f in self.faeuste:
+            idx = [k for k in range(self.n_a) if f.a >> k & 1]
+            if f.vorwaerts() and idx and min(idx) - 1 <= i <= max(idx) + 1 \
+                    and max(idx + [i]) - min(idx + [i]) < BREITE:
+                return f
 
     def edge(self, i, v, tus, now):
         bit = 1 << i
+        if bit & self.dead:
+            return
         if v:
             self.low &= ~bit
-            for s in self.seiten:
-                if s.ph == "AB":
-                    if bit & s.b and not self.low & s.b:
-                        s.tbr = tus
-                    elif bit & s.a and not self.low & s.a:
-                        s.tar = tus
+            for f in self.faeuste:
+                if (f.a | f.b) & bit:
+                    f.a &= ~bit
+                    f.b &= ~bit
+                    if f.ph == "AB":
+                        if i >= self.n_a and not f.b:
+                            f.tbr = tus
+                        elif i < self.n_a and not f.a:
+                            f.tar = tus
+                    if not f.a | f.b:
+                        f.clear = now
+            return
+        self.low |= bit
+        if i < self.n_a:
+            f = self._besitzer_a(i) or self._neu("A", i, tus, now)
+            f.a |= bit
+            f.tan = tus
         else:
-            self.low |= bit
-            for s in self.seiten:
-                if bit & s.a:
-                    if s.ph is None:
-                        s.ph, s.ta, s.ach, s.bch, s.tbr, s.tar, s.m = "A", tus, i, None, None, None, 0
-                        self.events.append(("a", s.hand))
-                elif bit & s.b:
-                    if s.ph == "A":
-                        s.ph, s.tb, s.bch = "AB", tus, i
-                        self.events.append(("b", s.hand))
-                    elif s.ph is None and not bit & s.shared:
-                        s.ph, s.ach, s.bch, s.m = "B", None, i, 0
-                if s.ph and bit & (s.a | s.b):
-                    s.m |= bit
-        self._clear(now)
+            x = self.pos(i)
+            kand = sorted(self.faeuste, key=lambda f: abs(self.x(f) - x) + (0 if f.vorwaerts() else 0.3))
+            f = kand[0] if kand else self._neu("B", i, tus, now)
+            if f.ph == "AB" and not f.b and f.tbr is not None and (tus - f.tbr) % WRAP >= NACH_US:
+                f = self._nachschlag(f, i, tus, now)
+            if f.ph == "A":
+                f.ph, f.tb, f.bch = "AB", tus, i
+                self.events.append(("b", f.hand))
+            f.b |= bit
+        f.m |= bit
+        f.clear = None
+
+    def _frei(self, now):
+        for f in self.faeuste:
+            f.a &= self.low
+            f.b &= self.low
+            if not f.a | f.b and f.clear is None:
+                f.clear = now
 
     def set_dead(self, mask, now):
-        if mask == self.dead:
-            return
-        neu = mask & ~self.dead
-        for s in self.seiten:
-            if neu & (s.a | s.b):
-                s.ph = None
-        self.dead = mask
-        self.low &= ~mask
-        self._clear(now)
+        if mask != self.dead:
+            self.dead = mask
+            self.low &= ~mask
+            self._frei(now)
 
     def status(self, mask, now):
         self.low = ~mask & self.all & ~self.dead
-        self._clear(now)
+        self._frei(now)
+
+    def _nachschlag(self, f, i, tus, now):
+        """Faust war schon aus B zurück, Arm blieb in A, und sie stößt erneut durch B: alter Schlag fertig, neuer beginnt."""
+        self.faeuste.remove(f)
+        self.fertig.append(self._ergebnis(f, now))
+        g = Faust(f.hand, "A", f.ach, tus, now)
+        frisch = f.tan is not None and (f.tan - f.tbr) % WRAP < (tus - f.tbr) % WRAP
+        g.ta = g.tan = f.tan if frisch else None
+        g.a = g.m = f.a
+        self.faeuste.append(g)
+        return g
+
+    def _ergebnis(self, f, now):
+        r = dict(t=now, ok=False, v=None, vb=None, dt=None, a=f.ach, b=f.bch, hand=f.hand, am=f.m & self.amask,
+                 bm=f.m & ~self.amask)
+        if f.ph == "AB":
+            dt = None if f.ta is None else (f.tb - f.ta) % WRAP
+            r["dt"] = dt
+            if dt is not None and dt < MIN_DT_US:
+                r["msg"] = "ZU SCHNELL?"
+            elif dt is not None and dt > MAX_DT_US:
+                r["msg"] = "ZU LANGSAM"
+            else:
+                self.n += 1
+                r.update(ok=True, n=self.n, msg="TREFFER")
+                self.hx[f.hand] += LERN * (self.x(f) - self.hx[f.hand])
+                if dt:
+                    r["v"] = self.dist * 1e6 / dt
+                    self.best = max(self.best, r["v"])
+                if f.tbr is not None and f.tar is not None:
+                    db = (f.tar - f.tbr) % WRAP
+                    if MIN_DT_US <= db <= MAX_DT_US:
+                        r["vb"] = self.dist * 1e6 / db
+        else:
+            r["msg"] = "NICHT DURCH" if f.ph == "A" else "RÜCKWÄRTS"
+        self.events.append(("punkt" if r["ok"] else "fehl", f.hand))
+        self.last = r
+        return r
 
     def tick(self, now):
-        out = []
-        for s in self.seiten:
-            if s.ph is None or s.clear is None or now - s.clear < SETTLE_S:
-                continue
-            ph, s.ph = s.ph, None
-            r = dict(t=now, ok=False, v=None, vb=None, dt=None, a=s.ach, b=s.bch, hand=s.hand, am=s.m & s.a,
-                     bm=s.m & s.b)
-            if ph == "AB":
-                dt = (s.tb - s.ta) % WRAP
-                r["dt"] = dt
-                if dt < MIN_DT_US:
-                    r["msg"] = "ZU SCHNELL?"
-                elif dt > MAX_DT_US:
-                    r["msg"] = "ZU LANGSAM"
-                else:
-                    self.n += 1
-                    v = self.dist * 1e6 / dt
-                    self.best = max(self.best, v)
-                    r.update(ok=True, v=v, n=self.n, msg="TREFFER")
-                    if s.tbr is not None and s.tar is not None:
-                        db = (s.tar - s.tbr) % WRAP
-                        if MIN_DT_US <= db <= MAX_DT_US:
-                            r["vb"] = self.dist * 1e6 / db
-            else:
-                r["msg"] = "NICHT DURCH" if ph == "A" else "RÜCKWÄRTS"
-            self.events.append(("punkt" if r["ok"] else "fehl", s.hand))
-            self.last = r
-            out.append(r)
+        out, self.fertig = self.fertig, []
+        for f in [f for f in self.faeuste if f.clear is not None and now - f.clear >= SETTLE_S]:
+            self.faeuste.remove(f)
+            if not (f.ph == "A" and f.clear - f.t0 < ZUCKEN_S):
+                out.append(self._ergebnis(f, now))
         return out

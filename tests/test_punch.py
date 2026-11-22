@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from punch import Punch, WRAP
@@ -43,8 +45,19 @@ def test_distance_scales_speed():
 
 
 def test_not_through():
-    _, r = run([(A1, 0, 0), (A1, 1, 50_000)])
+    p = Punch(6, 13, 200)
+    p.edge(A1, 0, 0, 0.0)
+    p.edge(A1, 1, 150_000, 0.15)
+    r = one(p, 0.2)
     assert not r["ok"] and r["msg"] == "NICHT DURCH"
+    assert p.events == [("a", "L"), ("fehl", "L")]
+
+
+def test_short_wipe_through_a_is_ignored():
+    p = Punch(6, 13, 200)
+    p.edge(A1, 0, 0, 0.0)
+    p.edge(A1, 1, 30_000, 0.03)
+    assert p.tick(0.2) == [] and p.events == [("a", "L")]
 
 
 def test_backwards():
@@ -135,23 +148,49 @@ def test_both_hands_at_once():
     assert p.events == [("a", "L"), ("a", "R"), ("b", "R"), ("b", "L"), ("punkt", "R"), ("punkt", "L")]
 
 
-def test_shared_middle_beam_only_counts_for_active_side():
+def test_left_fist_crossing_to_right_b_is_one_left_hit():
     p = Punch(6, 13, 200)
-    B4 = 9
-    p.edge(B4, 0, 0, 0.0)
-    p.edge(B4, 1, 1_000, 0.001)
-    assert p.tick(0.2) == [] and p.events == []
-    p.edge(5, 0, 0, 1.0)
-    p.edge(B4, 0, 30_000, 1.03)
-    p.edge(5, 1, 50_000, 1.05)
-    p.edge(B4, 1, 60_000, 1.06)
-    r = one(p, 1.2)
-    assert r["ok"] and r["hand"] == "R" and r["b"] == B4
+    for ch, v, tus, t in ((1, 0, 0, 0.0), (2, 0, 5_000, 0.005), (10, 0, 40_000, 0.04), (10, 1, 90_000, 0.09),
+                          (2, 1, 120_000, 0.12), (1, 1, 130_000, 0.13)):
+        p.edge(ch, v, tus, t)
+    r = p.tick(0.3)
+    assert [(x["hand"], x["ok"]) for x in r] == [("L", True)] and r[0]["b"] == 10
 
 
-def test_miss_event():
-    p, r = run([(A1, 0, 0), (A1, 1, 50_000)])
-    assert p.events == [("a", "L"), ("fehl", "L")]
+def test_arm_staying_in_a_counts_each_push_through_b():
+    p = Punch(6, 13, 200)
+    p.edge(1, 0, 0, 0.0)
+    t = 0.0
+    for k in range(3):
+        tb = 60_000 + k * 250_000
+        p.edge(1 + (k > 0), 0, tb - 50_000, tb / 1e6 - 0.05) if k else None
+        p.edge(7, 0, tb, tb / 1e6)
+        p.edge(7, 1, tb + 80_000, tb / 1e6 + 0.08)
+        t = tb / 1e6 + 0.1
+        p.tick(t)
+    p.edge(2, 1, 900_000, 0.9)
+    p.edge(1, 1, 900_000, 0.9)
+    p.tick(1.0)
+    assert p.n == 3
+
+
+def test_two_fists_side_by_side_stay_apart():
+    p = Punch(6, 13, 200)
+    for ch, v, tus, t in ((2, 0, 0, 0.0), (3, 0, 2_000, 0.002), (4, 0, 4_000, 0.004), (8, 0, 40_000, 0.04),
+                          (10, 0, 45_000, 0.045), (8, 1, 90_000, 0.09), (10, 1, 95_000, 0.095), (2, 1, 120_000, 0.12),
+                          (3, 1, 121_000, 0.121), (4, 1, 122_000, 0.122)):
+        p.edge(ch, v, tus, t)
+    r = p.tick(0.3)
+    assert sorted(x["hand"] for x in r if x["ok"]) == ["L", "R"]
+
+
+def test_replay_fast_alternating_training():
+    import analyse
+    ev, st, _ = analyse.laden(Path(__file__).parent / "data" / "schnell")
+    res = analyse.abspielen(ev, st, Punch)
+    ok = [r for r in res if r["ok"]]
+    nl = sum(r["hand"] == "L" for r in ok)
+    assert 100 <= len(ok) <= 110 and abs(2 * nl - len(ok)) <= 6 and len(res) - len(ok) <= 5
 
 
 def test_retraction_speed_and_path_masks():
