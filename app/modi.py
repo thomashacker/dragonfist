@@ -6,7 +6,7 @@ import time
 import pygame
 
 from scenes import W, H, BG, INK, DIM, LO, GREEN, SPIEL, Scene
-from training import HAND, Stats, Wahl, auswerten, _mittel
+from training import Stats, Wahl, auswerten, zaehler, _mittel
 
 COUNTDOWN = 5
 ROT = (255, 70, 60)
@@ -71,14 +71,6 @@ class Spiel(Scene):
             self.app.play("back")
             self.app.pop()
 
-    def zaehler(self, s, f, y):
-        ok = [r for r in self.punches if r["ok"]]
-        for hand, x, name in (("L", W // 4, "LINKS"), ("R", 3 * W // 4, "RECHTS")):
-            f.text(s, name, (x, y), "s", HAND[hand], "center")
-            f.text(s, str(sum(r["hand"] == hand for r in ok)), (x, y + 60), "xl", INK, "center")
-        v = _mittel([r["v"] * 3.6 for r in ok if r["v"]])
-        f.text(s, f"GESAMT {len(ok)}  ·  Ø {v:.1f} km/h", (W // 2, y + 140), "s", DIM, "center")
-
     def ton(self, n, laut="tick"):
         if n != self.nr:
             self.nr = n
@@ -127,7 +119,7 @@ class Zeit(Spiel):
                    "center")
             pygame.draw.rect(s, LO, (W // 2 - 300, 230, 600, 12), 1)
             pygame.draw.rect(s, GREEN, (W // 2 - 300, 230, int(600 * (1 - rest / self.limit)), 12))
-        self.zaehler(s, f, 290)
+        zaehler(s, f, [r for r in self.punches if r["ok"]], 350)
         f.text(s, "ZURÜCK  abbrechen", (W // 2, H - 18), "xs", DIM, "center")
 
 
@@ -167,8 +159,7 @@ class Serie(Spiel):
         f.text(s, f"{uhr:.2f}", (W // 2, 160), "xl", col, "center")
         pygame.draw.rect(s, LO, (W // 2 - 300, 220, 600, 12), 1)
         pygame.draw.rect(s, GREEN, (W // 2 - 300, 220, int(600 * min(1, n / self.ziel)), 12))
-        f.text(s, f"{n} / {self.ziel}", (W // 2, 262), "m", INK, "center")
-        self.zaehler(s, f, 300)
+        zaehler(s, f, [r for r in self.punches if r["ok"]], 350, f"{n} / {self.ziel}")
         f.text(s, "ZURÜCK  abbrechen", (W // 2, H - 18), "xs", DIM, "center")
 
 
