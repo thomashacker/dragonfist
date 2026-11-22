@@ -101,3 +101,19 @@ def test_hit_without_speed_in_training_and_overlay(app):
     for i in range(5):
         app.stack[-1].t0 = time.monotonic() - i * SEITE_S - 3
         frames(app, n=1)
+
+
+def test_known_names_are_offered(app):
+    from training import NamenWahl, Wahl, eintragen
+    base = auswerten([r(0.5, "L", 5.0)], 2.0)
+    for k, n in enumerate(["KIM", "MAX", "KIM"]):
+        eintragen(app.scores, "ZEIT", dict(base, id=k, name=n, datum="1.1.26", ziel=10, dauer_s=2.0))
+    app.push(Wahl(app, base | dict(disz="SCHLÄGE", ziel=10)))
+    frames(app, ["ok"])
+    sc = app.stack[-1]
+    assert isinstance(sc, NamenWahl) and sc.items == ["+ NEUER NAME", "KIM", "MAX"] and sc.sel == 1
+    frames(app, ["down", "ok"])
+    assert top(app) == "Highscore" and rangliste(app.scores, "SCHLÄGE")[0]["name"] == "MAX"
+    app.push(Wahl(app, base))
+    frames(app, ["ok", "up", "ok"])
+    assert top(app) == "NameEntry"

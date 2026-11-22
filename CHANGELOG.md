@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.13.1] – 2026-11-22
+
+### Added
+- Saving a result offers all names from the highscores (most recent first) for a one-press pick; "+ NEUER NAME" opens the letter entry
+
 ## [0.13.0] – 2026-11-22
 
 ### Added

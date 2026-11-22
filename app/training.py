@@ -266,8 +266,68 @@ class Stats(Scene):
 class Wahl(Tiles):
     def __init__(self, app, st):
         self.title = f"{st.get('disz', 'TRAINING')} BEENDET"
-        super().__init__(app, [("SPEICHERN", "Name eingeben", lambda: app.push(NameEntry(app, st))),
+        super().__init__(app, [("SPEICHERN", "Name wählen", lambda: app.push(namen_wahl(app, st))),
                                ("VERWERFEN", "zurück zum Menü", lambda: app.home())])
+
+
+def speichern(app, st, name):
+    disz = st.get("disz", "TRAINING")
+    e = dict(id=int(time.time() * 1000), name=name, datum=time.strftime("%d.%m.%y"), dauer=round(st["dauer"]),
+             dauer_s=round(st["dauer"], 2), n=st["n"], nl=st["nl"], nr=st["nr"], v_avg=round(st["v_avg"], 2),
+             vb_avg=round(st["vb_avg"], 2), v_max=round(st["v_max"], 2), takt_avg=round(st["takt_avg"], 3),
+             genau=round(st["genau"], 1))
+    e |= {k: st[k] for k in ("ziel", "kombo", "r_avg", "r_best", "fehlstart") if k in st}
+    eintragen(app.scores, disz, e)
+    app.cfg["name"] = name
+    app.save()
+    app.home(Highscore(app, disz, e["id"]))
+
+
+def bekannte_namen(datei):
+    """Alle Namen aus den Highscores, zuletzt benutzte zuerst."""
+    alle = sorted((e for liste in laden(datei).values() for e in liste), key=lambda e: -e["id"])
+    return list(dict.fromkeys(e["name"] for e in alle))
+
+
+def namen_wahl(app, st):
+    namen = bekannte_namen(app.scores)
+    return NamenWahl(app, st, namen) if namen else NameEntry(app, st)
+
+
+class NamenWahl(Scene):
+    bare, ZEILEN = True, 7
+
+    def __init__(self, app, st, namen):
+        super().__init__(app)
+        self.st, self.items, self.sel = st, ["+ NEUER NAME"] + namen, 1
+
+    def on(self, a):
+        if a in ("up", "down", "left", "right"):
+            self.sel = (self.sel + (1 if a in ("down", "right") else -1)) % len(self.items)
+            self.app.play("move")
+        elif a == "ok":
+            self.app.play("ok")
+            if self.sel == 0:
+                self.app.push(NameEntry(self.app, self.st))
+            else:
+                speichern(self.app, self.st, self.items[self.sel])
+        elif a == "back":
+            self.app.play("back")
+            self.app.pop()
+
+    def draw(self, s, now):
+        f = self.app.font
+        f.text(s, "WER WAR'S?", (W // 2, 54), "l", INK, "center")
+        von = min(max(0, self.sel - self.ZEILEN // 2), max(0, len(self.items) - self.ZEILEN))
+        for j, name in enumerate(self.items[von:von + self.ZEILEN]):
+            k = von + j
+            r = pygame.Rect(W // 2 - 260, 110 + j * 58, 520, 50)
+            on = k == self.sel
+            pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 1)
+            f.text(s, name, r.center, "m", BG if on else (DIM if k == 0 else INK), "center")
+        von and f.text(s, "▲", (W // 2 + 300, 135), "s", DIM, "center")
+        von + self.ZEILEN < len(self.items) and f.text(s, "▼", (W // 2 + 300, 110 + 6 * 58 + 25), "s", DIM, "center")
+        f.text(s, "▲▼ wählen  ·  OK speichern  ·  ZURÜCK", (W // 2, H - 18), "xs", DIM, "center")
 
 
 class NameEntry(Scene):
@@ -294,16 +354,7 @@ class NameEntry(Scene):
             if not name:
                 return self.app.play("back")
             self.app.play("ok")
-            st, disz = self.st, self.st.get("disz", "TRAINING")
-            e = dict(id=int(time.time() * 1000), name=name, datum=time.strftime("%d.%m.%y"), dauer=round(st["dauer"]),
-                     dauer_s=round(st["dauer"], 2), n=st["n"], nl=st["nl"], nr=st["nr"], v_avg=round(st["v_avg"], 2),
-                     vb_avg=round(st["vb_avg"], 2), v_max=round(st["v_max"], 2), takt_avg=round(st["takt_avg"], 3),
-                     genau=round(st["genau"], 1))
-            e |= {k: st[k] for k in ("ziel", "kombo", "r_avg", "r_best", "fehlstart") if k in st}
-            eintragen(self.app.scores, disz, e)
-            self.app.cfg["name"] = name
-            self.app.save()
-            self.app.home(Highscore(self.app, disz, e["id"]))
+            speichern(self.app, self.st, name)
 
     def draw(self, s, now):
         f = self.app.font
