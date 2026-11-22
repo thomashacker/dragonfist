@@ -3,6 +3,16 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.5.0] – 2026-11-22
+
+### Added
+- Splash service: black screen with "STARTET …" / update status whenever the app is not running, so the desktop stays hidden on boot, update and restart
+- Update banner in the app while an update installs
+- install.sh sets a black desktop and hides desktop icons and dock
+
+### Fixed
+- App and monitor stop the Pico reader thread before exit (no more core dump on stop)
+
 ## [0.4.1] – 2026-11-22
 
 ### Changed

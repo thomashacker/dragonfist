@@ -18,6 +18,7 @@ from runlog import RunLog
 from sound import Sfx
 from inputs import Input
 from scenes import W, H, BG, INK, DIM, GREEN, Intro
+from splash import hold_lock, status
 
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 CFG_FILE = ROOT / "settings.json"
@@ -63,8 +64,10 @@ class App:
         if a.sim:
             self.st.connect("SIM")
         else:
-            threading.Thread(target=reader, args=(self.st, a.port, self.stop), daemon=True).start()
+            self.reader = threading.Thread(target=reader, args=(self.st, a.port, self.stop), daemon=True)
+            self.reader.start()
         self.stack, self.toast, self.sim_s, self.fade, self.track = [], None, 0.0, None, None
+        self.status, self.status_t, self.lock = None, 0.0, None
         self.black = pygame.Surface((W, H))
         self.black.fill(BG)
         self.push(Intro(self))
@@ -168,6 +171,13 @@ class App:
         sc = self.stack[-1]
         if not (hasattr(sc, "ui") or getattr(sc, "bare", False)):
             self.overlay(now)
+        if now - self.status_t >= 1:
+            self.status, self.status_t = status(), now
+        if self.status:
+            r = self.font.text(self.screen, self.status, (W // 2, 14), "s", GREEN, "midtop").inflate(24, 12)
+            pygame.draw.rect(self.screen, BG, r)
+            pygame.draw.rect(self.screen, GREEN, r, 2)
+            self.font.text(self.screen, self.status, r.center, "s", GREEN, "center")
         if self.fade:
             k = (now - self.fade[0]) / self.fade[1]
             if k >= 1:
@@ -203,12 +213,16 @@ class App:
                 now = time.monotonic()
                 self.frame(acts, now)
                 pygame.display.flip()
+                if not (shot or self.lock):
+                    self.lock = hold_lock()
                 if shot and not script and now - t0 > 1.5:
                     pygame.image.save(self.screen, shot)
                     break
                 clock.tick(60)
         finally:
             self.stop.set()
+            if hasattr(self, "reader"):
+                self.reader.join(1)
             if self.st.rl:
                 with self.st.lock:
                     self.st.rl.close()
