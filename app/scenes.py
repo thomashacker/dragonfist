@@ -100,8 +100,6 @@ class Modes(Tiles):
     def __init__(self, app):
         from training import Training
         super().__init__(app, [
-            ("STORY", "Abenteuer", lambda: app.push(Placeholder(app, "STORY"))),
-            ("ARENA", "Wettkampf", lambda: app.push(Arena(app))),
             ("TRAINING", "Endlos", lambda: app.push(Training(app))),
         ])
 

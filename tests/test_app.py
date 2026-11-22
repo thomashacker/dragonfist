@@ -39,14 +39,8 @@ def test_navigate_all_scenes(app):
     to_title(app)
     frames(app, ["ok"])
     assert top(app) == "Modes"
-    frames(app, ["right", "ok"])
-    assert top(app) == "Arena"
-    for k in range(4):
-        frames(app, ["ok"])
-        assert top(app) == "Placeholder"
-        frames(app, ["back", "right"])
-    frames(app, ["back", "left", "ok"])
-    assert top(app) == "Placeholder" and app.stack[-1].name == "STORY"
+    frames(app, ["ok"])
+    assert top(app) == "Training"
     frames(app, ["back", "back", "right", "ok"])
     assert top(app) == "Settings"
     app.stack[-1].sel = 5
@@ -124,7 +118,7 @@ def test_music_follows_scene(app):
     to_title(app)
     assert app.track == "title"
     frames(app, ["ok", "ok"])
-    assert top(app) == "Placeholder" and app.track == "action"
+    assert top(app) == "Training" and app.track == "action"
     frames(app, ["back", "back", "right", "ok"])
     assert top(app) == "Settings" and app.track == "title"
     app.stack[-1].sel = 5
@@ -139,12 +133,12 @@ def test_music_follows_scene(app):
 def test_leds_dance_in_menu_and_follow_punch_in_mode(app):
     to_title(app)
     assert app.st.out[-1] == "T"
-    frames(app, ["ok", "right", "ok", "ok"])
-    assert top(app) == "Placeholder" and app.st.out[-1] == "L 000000 000000"
+    frames(app, ["ok", "ok"])
+    assert top(app) == "Training" and app.st.out[-1] == "L 000000 000000"
     app.sim_punch("R")
     frames(app, n=4)
     assert app.st.out[-1] == "L 000000 0050ff"
-    assert app.stack[-1].n == {"L": 0, "R": 1}
+    assert [r["hand"] for r in app.stack[-1].punches if r["ok"]] == ["R"]
     for hand in "LR":
         app.led[hand] = ("punkt", time.monotonic() - 1)
     frames(app, n=1)
