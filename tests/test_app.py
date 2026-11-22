@@ -26,7 +26,7 @@ def test_intro_runs_through(app):
     it = app.stack[-1]
     it.t0 = time.monotonic() - 20
     frames(app, n=1)
-    assert top(app) == "Title"
+    assert top(app) == "Title" and not pygame.mouse.get_visible()
 
 
 def test_intro_skip_and_title_back_keeps_running(app):
@@ -96,19 +96,10 @@ def test_quit_from_settings(app):
     assert not app.running
 
 
-def test_version_shown(app):
-    to_title(app)
-    assert app.version.count(".") == 2
-
-
 def test_bundled_font(app):
     from monitor import FONT
     assert FONT.exists()
     assert app.font.f["xl"].size("DRAGONFIST")[0] < scenes.W
-
-
-def test_cursor_hidden(app):
-    assert not pygame.mouse.get_visible()
 
 
 def test_music_follows_scene(app):

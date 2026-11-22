@@ -5,6 +5,7 @@ import time
 
 import pygame
 
+from runlog import schreiben
 from scenes import W, H, BG, INK, DIM, LO, GREEN, SPIEL, Scene, Tiles
 
 BLAU, HAND = (90, 160, 255), {"L": (255, 150, 60), "R": (90, 170, 255)}
@@ -64,7 +65,7 @@ def laden(datei):
 def eintragen(datei, disz, e):
     d = laden(datei)
     d.setdefault(disz, []).append(e)
-    datei.write_text(json.dumps(d, indent=1, ensure_ascii=False), encoding="utf-8")
+    schreiben(datei, d)
 
 
 def rangliste(datei, disz):

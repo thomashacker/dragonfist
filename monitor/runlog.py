@@ -1,11 +1,19 @@
 import csv
 import json
+import os
 import time
 from pathlib import Path
 
 WRAP = 1 << 30
 GLITCH_US = 3000
 GAP_S = 0.25
+
+
+def schreiben(pfad, daten):
+    """Erst in eine Nebendatei, dann umbenennen: ein Stromausfall hinterlässt nie eine halbe Datei."""
+    tmp = pfad.with_suffix(pfad.suffix + ".tmp")
+    tmp.write_text(json.dumps(daten, indent=1, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, pfad)
 
 
 class RunLog:
@@ -117,8 +125,7 @@ class RunLog:
     def flush(self, force=False):
         if force or time.monotonic() >= self.next_sum:
             self.next_sum = time.monotonic() + 5
-            (self.dir / "summary.json").write_text(json.dumps(self.summary(), indent=1, ensure_ascii=False),
-                                                   encoding="utf-8")
+            schreiben(self.dir / "summary.json", self.summary())
 
     def close(self):
         self.note("ende")

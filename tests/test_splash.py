@@ -72,3 +72,38 @@ def test_reader_wakes_silent_pico(monkeypatch):
     stop.set()
     th.join(2)
     assert geschrieben and geschrieben[0] == monitor.WECKEN
+
+
+def test_reader_joins_split_lines(monkeypatch):
+    import threading
+    import monitor
+
+    teile = [b"E 3 0 50", b"6293698\n", b"S 1fff\n"]
+
+    class Zerhackt:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def readline(self):
+            time.sleep(0.005)
+            return teile.pop(0) if teile else b""
+
+        def write(self, b):
+            pass
+
+    monkeypatch.setattr(monitor.serial, "Serial", Zerhackt)
+    st, stop = monitor.State(None, 200), threading.Event()
+    gelesen = []
+    monkeypatch.setattr(st, "feed", gelesen.append)
+    th = threading.Thread(target=monitor.reader, args=(st, "x", stop))
+    th.start()
+    time.sleep(0.1)
+    stop.set()
+    th.join(2)
+    assert gelesen == ["E 3 0 506293698\n", "S 1fff\n"]
