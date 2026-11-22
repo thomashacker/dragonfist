@@ -67,11 +67,11 @@ def test_aufnahme_logs_truth(app, tmp_path):
     app.st.note = notes.append
     app.push(Aufnahme(app))
     sc = app.stack[-1]
-    frames(app, ["left", "ok"])
+    frames(app, ["right", "right", "down", "left", "ok"])
     assert sc.dauer == 15 and sc.phase == "countdown"
     sc.t0 = time.monotonic() - 4
     frames(app, n=1)
-    assert sc.phase == "laeuft" and notes == ["AUFNAHME START dauer=15"]
+    assert sc.phase == "laeuft" and notes == ["AUFNAHME START dauer=15 person=1 art=SCHNELL"]
     app.sim_punch("L")
     app.sim_punch("R")
     frames(app, n=4)
@@ -80,6 +80,8 @@ def test_aufnahme_logs_truth(app, tmp_path):
     assert sc.phase == "zaehlen" and sc.zahl == 2
     frames(app, ["up", "right", "ok"])
     assert sc.phase == "fertig" and notes[-1] == "AUFNAHME ENDE erkannt=2 L=1 R=1 fehl=0 gezaehlt=13"
+    frames(app, ["ok"])
+    assert sc.phase == "wahl" and sc.wert(1) == "SCHNELL" and sc.dauer == 15
 
 
 def test_hit_without_speed_in_training_and_overlay(app):

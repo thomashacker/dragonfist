@@ -205,3 +205,27 @@ def test_replay_sideways_arm_gives_no_bogus_speed():
     ev, st, _ = analyse.laden(Path(__file__).parent / "data" / "training3")
     ok = [r for r in analyse.abspielen(ev, st, Punch) if r["ok"]]
     assert 104 <= len(ok) <= 112 and max(r["v"] for r in ok if r["v"]) * 3.6 <= 40
+
+
+def test_aufnahmen_compares_truth(tmp_path):
+    import aufnahmen
+    z = (Path(__file__).parent / "data" / "training3" / "raw.log").read_text(encoding="utf-8").splitlines()
+    t0, t1 = float(z[0].split()[0]), float(z[-1].split()[0])
+    (tmp_path / "lauf").mkdir()
+    (tmp_path / "lauf" / "raw.log").write_text("\n".join(
+        [f"{t0:.4f} # AUFNAHME START dauer=30 person=2 art=SCHNELL"] + z +
+        [f"{t1 + 0.1:.4f} # AUFNAHME ENDE erkannt=100 L=50 R=50 fehl=0 gezaehlt=110"]), encoding="utf-8")
+    (r,) = aufnahmen.aufnahmen(tmp_path / "lauf", Punch)
+    assert r["person"] == "2" and r["art"] == "SCHNELL" and r["gezaehlt"] == 110 and r["live"] == 100
+    assert 104 <= r["jetzt"] <= 112 and 0.5 < r["tempo"] <= 1 and r["vmax"] <= 40
+
+
+@pytest.mark.parametrize("lauf", ["schnell", "training2", "training3"])
+def test_hands_stay_on_their_side(lauf):
+    import analyse
+    ev, st, _ = analyse.laden(Path(__file__).parent / "data" / lauf)
+    ok = [r for r in analyse.abspielen(ev, st, Punch) if r["ok"]]
+    x = lambda r: sum(i + 0.5 for i in range(6) if r["am"] >> i & 1) / 6 / max(1, bin(r["am"]).count("1"))
+    for h, seite in (("L", lambda v: v < 0.5), ("R", lambda v: v > 0.5)):
+        rs = [x(r) for r in ok if r["hand"] == h and r["am"]]
+        assert sum(map(seite, rs)) / len(rs) > 0.85

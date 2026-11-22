@@ -5,19 +5,26 @@ import pygame
 from scenes import W, H, BG, INK, DIM, LO, GREEN, SPIEL, Scene
 
 DAUERN = (15, 30, 60)
+ARTEN = ("FREI", "LANGSAM", "SCHNELL", "NUR LINKS", "NUR RECHTS", "ARM VORNE", "KREUZ")
+PERSONEN = tuple("123456789")
+ZEILEN = (("PERSON", PERSONEN), ("SCHLAGART", ARTEN), ("DAUER", DAUERN))
 COUNTDOWN = 3
 
 
 class Aufnahme(Scene):
     music, leds, sounds, bare = None, "spiel", SPIEL, True
 
-    def __init__(self, app):
+    def __init__(self, app, wahl=(0, 0, 1)):
         super().__init__(app)
-        self.phase, self.k, self.t0, self.punches, self.zahl, self.nr = "wahl", 1, None, [], 0, 0
+        self.wahl, self.zeile = list(wahl), 1
+        self.phase, self.t0, self.punches, self.zahl, self.nr = "wahl", None, [], 0, 0
 
     @property
     def dauer(self):
-        return DAUERN[self.k]
+        return DAUERN[self.wahl[2]]
+
+    def wert(self, z):
+        return str(ZEILEN[z][1][self.wahl[z]])
 
     def punch(self, r):
         if self.phase == "laeuft":
@@ -29,8 +36,12 @@ class Aufnahme(Scene):
             app.play("back")
             return app.pop()
         if ph == "wahl":
-            if a in ("left", "right"):
-                self.k = (self.k + (1 if a == "right" else -1)) % len(DAUERN)
+            if a in ("up", "down"):
+                self.zeile = (self.zeile + (1 if a == "down" else -1)) % len(ZEILEN)
+                app.play("move")
+            elif a in ("left", "right"):
+                z = self.zeile
+                self.wahl[z] = (self.wahl[z] + (1 if a == "right" else -1)) % len(ZEILEN[z][1])
                 app.play("move")
             elif a == "ok":
                 app.play("ok")
@@ -49,20 +60,24 @@ class Aufnahme(Scene):
                 self.phase = "fertig"
         elif ph == "fertig" and a == "ok":
             app.play("ok")
-            self.__init__(app)
+            self.__init__(app, self.wahl)
         elif a == "back":
             app.st.note("AUFNAHME ABBRUCH")
             app.play("back")
-            self.__init__(app)
+            self.__init__(app, self.wahl)
 
     def draw(self, s, now):
         f, ph = self.app.font, self.phase
         f.text(s, "SCHLAG-AUFNAHME", (W // 2, 46), "l", INK, "center")
         if ph == "wahl":
-            f.text(s, "Schlag in deinem Tempo und zähl im Kopf mit.", (W // 2, 140), "s", DIM, "center")
-            f.text(s, "Danach gibst du ein, wie viele Schläge es wirklich waren.", (W // 2, 172), "s", DIM, "center")
-            f.text(s, f"<  {self.dauer} s  >", (W // 2, 300), "xl", INK, "center")
-            f.text(s, "◀▶ Dauer  ·  OK Start  ·  ZURÜCK", (W // 2, H - 18), "xs", DIM, "center")
+            f.text(s, "Schlagen und im Kopf mitzählen, danach die echte Zahl eingeben.", (W // 2, 120), "s", DIM,
+                   "center")
+            for z, (name, _) in enumerate(ZEILEN):
+                y, on = 220 + z * 90, z == self.zeile
+                f.text(s, name, (W // 2 - 60, y), "m", INK if on else DIM, "midright")
+                wert = self.wert(z) + (" s" if name == "DAUER" else "")
+                f.text(s, f"<  {wert}  >" if on else wert, (W // 2 + 180, y), "l", INK if on else DIM, "center")
+            f.text(s, "▲▼ Zeile  ·  ◀▶ ändern  ·  OK Start  ·  ZURÜCK", (W // 2, H - 18), "xs", DIM, "center")
             return
         if self.t0 is None:
             self.t0 = now
@@ -74,7 +89,8 @@ class Aufnahme(Scene):
                 self.app.play("ok" if n <= 0 else "move")
             if n <= 0:
                 self.phase, self.t0, self.punches = "laeuft", now, []
-                self.app.st.note(f"AUFNAHME START dauer={self.dauer}")
+                self.app.st.note(f"AUFNAHME START dauer={self.dauer} person={self.wert(0)} "
+                                 f"art={self.wert(1).replace(' ', '_')}")
                 return
             f.text(s, str(n), (W // 2, 300), "xl", INK, "center")
             f.text(s, "gleich geht's los", (W // 2, 400), "m", DIM, "center")

@@ -6,6 +6,7 @@ Wartung nach dem Skill `schmuhlsche-skills` (Teil `software.md`). Kurzfassung:
 
 1. Problem am echten Lauf beziffern: `runs/<lauf>/raw.log` vom Gerät holen,
    `python monitor/analyse.py <lauf> [--von s --bis s]` nachspielen, gegen die B-Eintritte vergleichen.
+   Schlag-Aufnahmen mit gezählter Wahrheit: `python monitor/aufnahmen.py runs` (vorher `scp -r jetson:dragonfist/runs .`).
 2. Kleinste Änderung, die die Ursache trifft.
 3. Test, der ohne Fix fehlschlägt. Fehler aus echten Daten: Lauf nach `tests/data/<name>/raw.log`
    plus Replay-Test mit Grenzen.

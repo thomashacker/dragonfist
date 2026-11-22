@@ -12,7 +12,8 @@ sys.path.insert(0, str(ROOT / "monitor"))
 
 import pygame
 
-from monitor import State, font, reader
+from monitor import font
+from pico import State, reader
 from punch import WRAP
 from runlog import RunLog, schreiben
 from sound import Sfx
@@ -248,7 +249,7 @@ class App:
                 if shot and not script and now - t0 > 1.5:
                     pygame.image.save(self.screen, shot)
                     break
-                clock.tick(60)
+                clock.tick(60 if self.stack[-1].leds == "spiel" else 30)
         finally:
             self.stop.set()
             if hasattr(self, "reader"):
@@ -259,7 +260,7 @@ class App:
 
 
 def _names():
-    from monitor import NAME, GP
+    from pico import NAME, GP
     return NAME, GP
 
 
