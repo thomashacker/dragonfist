@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.5.1] – 2026-11-22
+
+### Fixed
+- Splash stays fullscreen behind the app, so a restart shows no desktop at all; stops at once on SIGTERM
+
 ## [0.5.0] – 2026-11-22
 
 ### Added
