@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.11.0] – 2026-11-22
+
+### Added
+- Title screen shows a Wi-Fi symbol: green with the network name when online, grey and crossed out when offline (checked every 10 s in the background)
+
 ## [0.10.1] – 2026-11-22
 
 ### Fixed

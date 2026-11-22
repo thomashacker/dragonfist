@@ -17,6 +17,7 @@ from punch import WRAP
 from runlog import RunLog
 from sound import Sfx
 from inputs import Input
+from netz import Netz
 from scenes import W, H, BG, INK, DIM, GREEN, Intro
 from splash import hold_lock, status
 
@@ -61,6 +62,7 @@ class App:
             self.cfg["abstand"] = a.abstand
         self.font, self.force_mute, self.version, self.scores = Fonts(), a.mute, VERSION, SCORES
         self.apply_audio()
+        self.netz = Netz()
         rl = None if a.no_log else RunLog(a.runs, *_names(), "app")
         self.st, self.stop, self.sim = State(rl, self.cfg["abstand"]), threading.Event(), a.sim
         self.input = Input(self.sim_edge if a.sim else None, self.sim_punch if a.sim else None)

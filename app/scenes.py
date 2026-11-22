@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pygame
 
+from netz import symbol
+
 
 W, H = 1024, 600
 BG, INK, DIM, LO, GREEN = (0, 0, 0), (235, 235, 235), (120, 120, 120), (50, 50, 50), (90, 230, 130)
@@ -89,6 +91,9 @@ class Title(Tiles):
         pygame.draw.line(s, LO, (W // 2 - 300, 166), (W // 2 + 300, 166))
         self.draw_tiles(s, now)
         f.text(s, "v" + self.app.version, (W - 16, H - 44), "xs", DIM, "bottomright")
+        n = self.app.netz
+        symbol(s, (44, 50), n.online, GREEN, DIM)
+        f.text(s, (n.ssid or "WLAN") if n.online else "OFFLINE", (80, 30), "xs", GREEN if n.online else DIM)
 
     def on(self, a):
         a != "back" and super().on(a)
