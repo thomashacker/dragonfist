@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.11.2] – 2026-11-22
+
+### Added
+- CLAUDE.md: maintenance workflow (replay real runs, failing test first, release and on-device check) and code rules
+
 ## [0.11.1] – 2026-11-22
 
 ### Fixed
