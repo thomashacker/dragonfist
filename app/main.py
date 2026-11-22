@@ -28,7 +28,7 @@ SCORES = ROOT / "highscores.json"
 MUSIC = ROOT / "app" / "assets" / "music"
 FARBE = dict(a=(255, 90, 0), b=(0, 255, 0), punkt=(0, 80, 255), fehl=(255, 0, 0))
 HALTEN = dict(punkt=0.8, fehl=0.8)
-CFG = dict(audio=None, volume=80, ton=True, abstand=200)
+CFG = dict(audio=None, volume=80, ton=True, musik=True, abstand=200)
 
 
 class Fonts:
@@ -120,7 +120,7 @@ class App:
             pass
 
     def music(self):
-        want = None if self.mute else self.stack[-1].music
+        want = None if self.mute or not self.cfg["musik"] else self.stack[-1].music
         if want == self.track:
             return
         self.track = want

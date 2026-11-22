@@ -3,6 +3,14 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.12.1] – 2026-11-22
+
+### Added
+- Settings: MUSIK on/off mutes only the background music; sound effects stay on
+
+### Fixed
+- Settings rows shrink to fit the screen (the last row was cut off)
+
 ## [0.12.0] – 2026-11-22
 
 ### Added
