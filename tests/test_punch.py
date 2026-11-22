@@ -2,6 +2,11 @@ import pytest
 
 from punch import Punch, WRAP
 
+
+def one(p, now):
+    r = p.tick(now)
+    return r[0] if r else None
+
 A1, A6, B1, B7 = 0, 5, 6, 12
 
 
@@ -11,8 +16,8 @@ def run(edges, dist=200, settle=0.05):
     for ch, v, tus in edges:
         t += 0.001
         p.edge(ch, v, tus, t)
-    assert p.tick(t + 0.01) is None
-    return p, p.tick(t + settle)
+    assert one(p, t + 0.01) is None
+    return p, one(p, t + settle)
 
 
 def punch(a, b, t0, dt, hold=30_000):
@@ -62,12 +67,12 @@ def test_edge_flicker_keeps_first_break():
     p = Punch(6, 13, 200)
     p.edge(A1, 0, 0, 0.000)
     p.edge(A1, 1, 1_000, 0.001)
-    assert p.tick(0.005) is None
+    assert one(p, 0.005) is None
     p.edge(A1, 0, 2_000, 0.006)
     p.edge(B1, 0, 40_000, 0.040)
     p.edge(A1, 1, 70_000, 0.070)
     p.edge(B1, 1, 80_000, 0.080)
-    r = p.tick(0.2)
+    r = one(p, 0.2)
     assert r["ok"] and r["dt"] == 40_000
 
 
@@ -76,10 +81,10 @@ def test_waits_until_all_clear():
     p.edge(A1, 0, 0, 0.0)
     p.edge(B1, 0, 40_000, 0.04)
     p.edge(A1, 1, 60_000, 0.06)
-    assert p.tick(1.0) is None
+    assert one(p, 1.0) is None
     p.edge(B1, 1, 70_000, 1.0)
-    assert p.tick(1.01) is None
-    assert p.tick(1.1)["ok"]
+    assert one(p, 1.01) is None
+    assert one(p, 1.1)["ok"]
 
 
 def test_status_mask_releases():
@@ -87,7 +92,7 @@ def test_status_mask_releases():
     p.edge(A1, 0, 0, 0.0)
     p.edge(B1, 0, 40_000, 0.04)
     p.status((1 << 13) - 1, 0.1)
-    assert p.tick(0.2)["ok"]
+    assert one(p, 0.2)["ok"]
 
 
 def test_counter_and_best():
@@ -98,7 +103,7 @@ def test_counter_and_best():
             t += 0.01
             p.edge(ch, v, tus, t)
         t += 0.1
-        p.tick(t)
+        one(p, t)
     assert p.n == 3 and p.best == pytest.approx(10.0)
 
 
@@ -113,4 +118,37 @@ def test_dead_channel_ignored():
     p.edge(B1, 0, 40_000, 6.24)
     p.edge(A1, 1, 60_000, 6.26)
     p.edge(B1, 1, 70_000, 6.27)
-    assert p.tick(6.4)["ok"]
+    assert one(p, 6.4)["ok"]
+
+
+def test_both_hands_at_once():
+    p = Punch(6, 13, 200)
+    for ch, v, tus, t in ((A1, 0, 0, 0.0), (A6, 0, 5_000, 0.005), (B7, 0, 25_000, 0.025), (B1, 0, 40_000, 0.04),
+                          (A6, 1, 60_000, 0.06), (B7, 1, 70_000, 0.07), (A1, 1, 80_000, 0.08)):
+        p.edge(ch, v, tus, t)
+    r = p.tick(0.075 + 0.03)
+    assert [x["hand"] for x in r] == ["R"] and r[0]["dt"] == 20_000
+    assert one(p, 0.2) is None
+    p.edge(B1, 1, 90_000, 0.09)
+    r = one(p, 0.2)
+    assert r["hand"] == "L" and r["dt"] == 40_000 and p.n == 2
+    assert p.events == [("a", "L"), ("a", "R"), ("b", "R"), ("b", "L"), ("punkt", "R"), ("punkt", "L")]
+
+
+def test_shared_middle_beam_only_counts_for_active_side():
+    p = Punch(6, 13, 200)
+    B4 = 9
+    p.edge(B4, 0, 0, 0.0)
+    p.edge(B4, 1, 1_000, 0.001)
+    assert p.tick(0.2) == [] and p.events == []
+    p.edge(5, 0, 0, 1.0)
+    p.edge(B4, 0, 30_000, 1.03)
+    p.edge(5, 1, 50_000, 1.05)
+    p.edge(B4, 1, 60_000, 1.06)
+    r = one(p, 1.2)
+    assert r["ok"] and r["hand"] == "R" and r["b"] == B4
+
+
+def test_miss_event():
+    p, r = run([(A1, 0, 0), (A1, 1, 50_000)])
+    assert p.events == [("a", "L"), ("fehl", "L")]

@@ -1,8 +1,8 @@
-import sys, time, machine, rp2
+import sys, time, machine, rp2, select
 from machine import Pin, ADC, mem32
 from ubinascii import hexlify
 
-VERSION = 2
+VERSION = 3
 A = (0, 3, 6, 9, 12, 15)
 B = (28, 27, 22, 21, 14, 18, 17)
 CH = A + B
@@ -50,10 +50,12 @@ class Streifen:
         if (c, n) != self.farbe:
             self.farbe = (c, n)
             v = wort(c)
-            self.buf = [v if k < n else 0 for k in range(N_LED)]
-            self.i = 0
-            if self not in AKTIV:
-                AKTIV.append(self)
+            self.bild([v if k < n else 0 for k in range(N_LED)])
+
+    def bild(self, buf):
+        self.buf, self.i = buf, 0
+        if self not in AKTIV:
+            AKTIV.append(self)
 
     def pumpe(self):
         while self.i < N_LED and self.sm.tx_fifo() < 8:
@@ -70,6 +72,37 @@ for k in range(N_LED + 1):
             s.pumpe()
     time.sleep_ms(25)
 SEITE = (0x3C7, 0x1E38)    # Kanalmasken links (A1–A3, B1–B4) / rechts (A4–A6, B4–B7)
+
+
+def _rad(h):
+    h, k = h % 96, h % 32 * 8
+    return (255 - k, k, 0) if h < 32 else (0, 255 - k, k) if h < 64 else (k, 0, 255 - k)
+
+
+RAD = [wort(_rad(h)) for h in range(96)]
+pl = select.poll()
+pl.register(sys.stdin, select.POLLIN)
+modus, zeile, t_cmd, f = "auto", "", 0, 0    # auto: Pico färbt selbst · host: App setzt Farben · tanz: Regenbogen
+
+
+def befehl(p):
+    global modus
+    if len(p) == 3 and p[0] == "L":
+        modus = "host"
+        for s, x in zip(LED, p[1:]):
+            v = int(x, 16)
+            s.setze((v >> 16, v >> 8 & 255, v & 255))
+    elif p == ["T"]:
+        modus = "tanz"
+    else:
+        return False
+    return True
+
+
+def auto(raw):
+    m = chmask(raw)
+    for s, k in zip(LED, SEITE):
+        s.setze(RUHE if m & k == k else BRUCH)
 
 PM = 0
 for g in CH:
@@ -102,9 +135,8 @@ while True:
             if d >> g & 1:
                 w("E %d %d %d\n" % (i, raw >> g & 1, t))
         last = raw
-        m = chmask(raw)
-        for s, k in zip(LED, SEITE):
-            s.setze(RUHE if m & k == k else BRUCH)
+        if modus == "auto":
+            auto(raw)
     if AKTIV:
         for s in AKTIV:
             s.pumpe()
@@ -115,6 +147,27 @@ while True:
         t_s = now
         wdt.feed()
         w("S %x\n" % chmask(raw))
+        while pl.poll(0):
+            c = sys.stdin.read(1)
+            if c == "\n":
+                try:
+                    if befehl(zeile.split()):
+                        t_cmd = now
+                except ValueError:
+                    pass
+                zeile = ""
+            elif len(zeile) < 40:
+                zeile += c
+        if modus == "tanz":
+            f += 1
+            for k, s in enumerate(LED):
+                s.farbe = None
+                s.bild([RAD[(i * 5 + f * 2 + k * 48) % 96] for i in range(N_LED)])
+        if modus != "auto" and time.ticks_diff(now, t_cmd) > 3000:
+            modus = "auto"
+            for s in LED:
+                s.farbe = None
+            auto(raw)
         dt = time.ticks_diff(now, t_h)
         if dt >= 500:
             t_h = now

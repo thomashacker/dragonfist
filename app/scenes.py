@@ -8,9 +8,12 @@ BG, INK, DIM, LO, GREEN = (0, 0, 0), (235, 235, 235), (120, 120, 120), (50, 50, 
 ASSETS = Path(__file__).resolve().parent / "assets"
 
 
+SPIEL = ("a", "b", "punkt", "fehl", "verbunden", "getrennt")
+
+
 class Scene:
-    sounds = ("treffer", "verbunden", "getrennt")
-    music = "title"
+    sounds = ("verbunden", "getrennt")
+    music, leds = "title", "tanz"
 
     def __init__(self, app):
         self.app = app
@@ -174,14 +177,14 @@ class Settings(Scene):
 
 
 class Placeholder(Scene):
-    music = "action"
+    music, leds, sounds = "action", "spiel", SPIEL
 
     def __init__(self, app, name):
         super().__init__(app)
-        self.name, self.n = name, 0
+        self.name, self.n = name, {"L": 0, "R": 0}
 
     def punch(self, r):
-        self.n += r["ok"]
+        self.n[r["hand"]] += r["ok"]
 
     def on(self, a):
         if a == "back":
@@ -192,12 +195,11 @@ class Placeholder(Scene):
         f = self.app.font
         f.text(s, self.name, (W // 2, 64), "l", INK, "center")
         f.text(s, "KOMMT BALD", (W // 2, 250), "xl", INK, "center")
-        f.text(s, f"Testschläge: {self.n}", (W // 2, 350), "m", DIM, "center")
+        f.text(s, f"Testschläge  L {self.n['L']}  ·  R {self.n['R']}", (W // 2, 350), "m", DIM, "center")
 
 
 class Calibration(Scene):
-    sounds = ("bruch", "frei", "treffer", "verbunden", "getrennt")
-    music = None
+    sounds, music, leds = SPIEL, None, "spiel"
 
     def __init__(self, app):
         super().__init__(app)

@@ -20,6 +20,10 @@ DEFAULTS = {
     "treffer": dict(notes=["G5", "B5", "E6"], ms=450, gap=55, decay=7, harm=0.19, vol=0.22),
     "verbunden": dict(notes=["C5", "E5", "G5"], ms=500, gap=90, decay=7, harm=0.19, vol=0.18),
     "getrennt": dict(notes=["G5", "D5", "G4"], ms=500, gap=110, decay=7, harm=0.19, vol=0.18),
+    "a": dict(notes=["E5"], ms=110, decay=28, harm=0.14, vol=0.16),
+    "b": dict(notes=["B5"], ms=120, decay=26, harm=0.14, vol=0.17),
+    "punkt": dict(notes=["G5", "B5", "E6"], ms=450, gap=55, decay=7, harm=0.19, vol=0.22),
+    "fehl": dict(wave="square", notes=["D4", "A3"], ms=220, gap=80, decay=12, harm=0.1, lofi=1, vol=0.09),
     "bruch": dict(notes=["G4"], ms=260, decay=14, harm=0.15, vol=0.22),
     "frei": dict(notes=["D5"], ms=200, decay=18, harm=0.12, vol=0.15),
 }

@@ -134,3 +134,18 @@ def test_music_follows_scene(app):
     app.cfg["ton"] = False
     frames(app, n=1)
     assert app.track is None
+
+
+def test_leds_dance_in_menu_and_follow_punch_in_mode(app):
+    to_title(app)
+    assert app.st.out[-1] == "T"
+    frames(app, ["ok", "right", "ok", "ok"])
+    assert top(app) == "Placeholder" and app.st.out[-1] == "L 000000 000000"
+    app.sim_punch("R")
+    frames(app, n=4)
+    assert app.st.out[-1] == "L 000000 0050ff"
+    assert app.stack[-1].n == {"L": 0, "R": 1}
+    for hand in "LR":
+        app.led[hand] = ("punkt", time.monotonic() - 1)
+    frames(app, n=1)
+    assert app.st.out[-1] == "L 000000 000000"
