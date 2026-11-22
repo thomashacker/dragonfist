@@ -51,7 +51,7 @@ def test_tick_queues_hit_and_sound(st):
     time.sleep(0.04)
     st.tick(time.monotonic())
     assert len(st.hits) == 1 and st.hits[0]["ok"]
-    assert "treffer" in st.sfx and "bruch" in st.sfx
+    assert "punkt" in st.sfx and "a" in st.sfx and "bruch" in st.sfx
 
 
 def test_connect_resets_channels(st):

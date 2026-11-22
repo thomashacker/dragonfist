@@ -5,69 +5,106 @@ MIN_DT_US = 8_000
 DEAD_S = 5.0
 
 
+def _bits(r):
+    return sum(1 << i for i in r)
+
+
+class Seite:
+    """Eine Hand: A brechen -> B brechen -> wieder ganz frei = Schlag."""
+
+    def __init__(self, hand, a, b, shared):
+        self.hand, self.a, self.b, self.shared = hand, a, b, shared
+        self.ph = self.ta = self.tb = self.ach = self.bch = self.clear = None
+
+    def mask(self):
+        m = self.a | self.b
+        return m if self.ph else m & ~self.shared
+
+
 class Punch:
     def __init__(self, n_a, n_ch, dist_mm):
-        self.amask = (1 << n_a) - 1
-        self.all = (1 << n_ch) - 1
-        self.n_a, self.dist = n_a, dist_mm / 1000
-        self.low, self.ph, self.clear, self.dead = 0, None, None, 0
-        self.ta = self.tb = self.ach = self.bch = None
-        self.n = 0
-        self.last = None
-        self.best = 0.0
+        nb, ha = n_ch - n_a, n_a // 2
+        hb = (nb + 1) // 2
+        self.amask, self.all, self.n_a, self.dist = (1 << n_a) - 1, (1 << n_ch) - 1, n_a, dist_mm / 1000
+        links = _bits(range(n_a, n_a + hb))
+        rechts = _bits(range(n_ch - hb, n_ch))
+        shared = links & rechts
+        self.seiten = (Seite("L", _bits(range(ha)), links, shared), Seite("R", _bits(range(ha, n_a)), rechts, shared))
+        self.low, self.dead, self.n, self.last, self.best = 0, 0, 0, None, 0.0
+        self.events = []
+
+    @property
+    def ph(self):
+        return next((s.ph for s in self.seiten if s.ph), None)
+
+    def reset(self):
+        self.low = 0
+        for s in self.seiten:
+            s.ph = None
+
+    def _clear(self, now):
+        for s in self.seiten:
+            if self.low & s.mask():
+                s.clear = None
+            elif s.clear is None:
+                s.clear = now
 
     def edge(self, i, v, tus, now):
+        bit = 1 << i
         if v:
-            self.low &= ~(1 << i)
+            self.low &= ~bit
         else:
-            self.low |= 1 << i
-            if i < self.n_a:
-                if self.ph is None:
-                    self.ph, self.ta, self.ach, self.bch = "A", tus, i, None
-            elif self.ph == "A":
-                self.ph, self.tb, self.bch = "AB", tus, i
-            elif self.ph is None:
-                self.ph, self.ach, self.bch = "B", None, i
-        self.clear = now if not self.low else None
+            self.low |= bit
+            for s in self.seiten:
+                if bit & s.a:
+                    if s.ph is None:
+                        s.ph, s.ta, s.ach, s.bch = "A", tus, i, None
+                        self.events.append(("a", s.hand))
+                elif bit & s.b:
+                    if s.ph == "A":
+                        s.ph, s.tb, s.bch = "AB", tus, i
+                        self.events.append(("b", s.hand))
+                    elif s.ph is None and not bit & s.shared:
+                        s.ph, s.ach, s.bch = "B", None, i
+        self._clear(now)
 
     def set_dead(self, mask, now):
         if mask == self.dead:
             return
-        if mask & ~self.dead:
-            self.ph = None
+        neu = mask & ~self.dead
+        for s in self.seiten:
+            if neu & (s.a | s.b):
+                s.ph = None
         self.dead = mask
         self.low &= ~mask
-        if not self.low and self.clear is None:
-            self.clear = now
+        self._clear(now)
 
     def status(self, mask, now):
         self.low = ~mask & self.all & ~self.dead
-        if self.low:
-            self.clear = None
-        elif self.clear is None:
-            self.clear = now
+        self._clear(now)
 
     def tick(self, now):
-        if self.ph is None or self.low or self.clear is None or now - self.clear < SETTLE_S:
-            return None
-        ph, self.ph = self.ph, None
-        a = self.ach if self.ach is not None else self.bch
-        side = None if a is None else (a if a < self.n_a else a - self.n_a) / self.n_a
-        hand = None if side is None else ("L" if side < 0.5 else "R")
-        r = dict(t=now, ok=False, v=None, dt=None, a=self.ach, b=self.bch, hand=hand)
-        if ph == "AB":
-            dt = (self.tb - self.ta) % WRAP
-            r["dt"] = dt
-            if dt < MIN_DT_US:
-                r["msg"] = "ZU SCHNELL?"
-            elif dt > MAX_DT_US:
-                r["msg"] = "ZU LANGSAM"
+        out = []
+        for s in self.seiten:
+            if s.ph is None or s.clear is None or now - s.clear < SETTLE_S:
+                continue
+            ph, s.ph = s.ph, None
+            r = dict(t=now, ok=False, v=None, dt=None, a=s.ach, b=s.bch, hand=s.hand)
+            if ph == "AB":
+                dt = (s.tb - s.ta) % WRAP
+                r["dt"] = dt
+                if dt < MIN_DT_US:
+                    r["msg"] = "ZU SCHNELL?"
+                elif dt > MAX_DT_US:
+                    r["msg"] = "ZU LANGSAM"
+                else:
+                    self.n += 1
+                    v = self.dist * 1e6 / dt
+                    self.best = max(self.best, v)
+                    r.update(ok=True, v=v, n=self.n, msg="TREFFER")
             else:
-                self.n += 1
-                v = self.dist * 1e6 / dt
-                self.best = max(self.best, v)
-                r.update(ok=True, v=v, n=self.n, msg="TREFFER")
-        else:
-            r["msg"] = "NICHT DURCH" if ph == "A" else "RÜCKWÄRTS"
-        self.last = r
-        return r
+                r["msg"] = "NICHT DURCH" if ph == "A" else "RÜCKWÄRTS"
+            self.events.append(("punkt" if r["ok"] else "fehl", s.hand))
+            self.last = r
+            out.append(r)
+        return out

@@ -23,6 +23,8 @@ from splash import hold_lock, status
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 CFG_FILE = ROOT / "settings.json"
 MUSIC = ROOT / "app" / "assets" / "music"
+FARBE = dict(a=(255, 90, 0), b=(0, 255, 0), punkt=(0, 80, 255), fehl=(255, 0, 0))
+HALTEN = dict(punkt=0.8, fehl=0.8)
 CFG = dict(audio=None, volume=80, ton=True, abstand=200)
 
 
@@ -67,6 +69,7 @@ class App:
             self.reader = threading.Thread(target=reader, args=(self.st, a.port, self.stop), daemon=True)
             self.reader.start()
         self.stack, self.toast, self.sim_s, self.fade, self.track = [], None, 0.0, None, None
+        self.toasts, self.led, self.led_sent, self.led_t = {}, {"L": None, "R": None}, None, 0.0
         self.status, self.status_t, self.lock = None, 0.0, None
         self.black = pygame.Surface((W, H))
         self.black.fill(BG)
@@ -158,14 +161,16 @@ class App:
         self.music()
         self.st.tick(now)
         with self.st.lock:
-            snd, hits = list(dict.fromkeys(self.st.sfx)), list(self.st.hits)
+            snd, hits, leds = list(dict.fromkeys(self.st.sfx)), list(self.st.hits), list(self.st.leds)
             self.st.sfx.clear()
             self.st.hits.clear()
+            self.st.leds.clear()
         for k in snd:
             k in sc.sounds and self.play(k)
         for r in hits:
-            self.toast = r
+            self.toast = self.toasts[r["hand"]] = r
             sc.punch(r)
+        self.lights(sc, leds, now)
         self.screen.fill(BG)
         sc.draw(self.screen, now)
         sc = self.stack[-1]
@@ -186,16 +191,34 @@ class App:
                 self.black.set_alpha(int(255 * (1 - k)))
                 self.screen.blit(self.black, (0, 0))
 
+    def lights(self, sc, leds, now):
+        for k, hand in leds:
+            self.led[hand] = (k, now + HALTEN[k] if k in HALTEN else None)
+        if sc.leds == "tanz":
+            cmd = "T"
+        else:
+            hex6 = []
+            for hand in "LR":
+                k = self.led[hand]
+                if k and k[1] and now > k[1]:
+                    k = self.led[hand] = None
+                r, g, b = FARBE[k[0]] if k else (0, 0, 0)
+                hex6.append(f"{r:02x}{g:02x}{b:02x}")
+            cmd = "L " + " ".join(hex6)
+        if cmd != self.led_sent or now - self.led_t > 1:
+            self.led_sent, self.led_t = cmd, now
+            self.st.send(cmd)
+
     def overlay(self, now):
         s, f = self.screen, self.font
         live = self.sim or self.st.live(now)
         f.text(s, "SIM" if self.sim else ("PICO" if live else "KEIN PICO"), (W - 16, 12), "xs",
                GREEN if live else DIM, "topright")
-        r = self.toast
-        if r and now - r["t"] < 2.5:
-            hand = {"L": "LINKS", "R": "RECHTS"}.get(r["hand"], "")
-            txt = f"{hand}  {r['v'] * 3.6:.1f} km/h" if r["ok"] else f"{hand}  {r['msg']}"
-            f.text(s, txt, (W // 2, H - 64), "m", GREEN if r["ok"] else DIM, "center")
+        for hand, x in (("L", W * 3 // 10), ("R", W * 7 // 10)):
+            r = self.toasts.get(hand)
+            if r and now - r["t"] < 2.5:
+                txt = f"{hand}  {r['v'] * 3.6:.1f} km/h" if r["ok"] else f"{hand}  {r['msg']}"
+                f.text(s, txt, (x, H - 64), "m", GREEN if r["ok"] else DIM, "center")
         hint = "A/D wählen · OK · ZURÜCK · SIM: ← links · → rechts" if self.sim else "←→ wählen · OK · ZURÜCK"
         f.text(s, hint, (W // 2, H - 16), "xs", DIM, "center")
 

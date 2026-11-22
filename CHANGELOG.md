@@ -3,6 +3,17 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.7.0] – 2026-11-22
+
+### Changed
+- Punch detection runs per side: left and right hand are tracked independently and can punch at the same time; the middle B beam counts only for a side already in its A phase
+- Mode screens count test punches per hand
+
+### Added
+- Pico firmware 3: takes LED commands from the app (`L <rrggbb> <rrggbb>`, `T` rainbow); falls back to its own colours 3 s after the last command
+- LEDs dance in the menus; in modes each side shows its phase: off, orange A broken, green B broken, blue punch counted on retraction, red miss
+- A sound for each phase
+
 ## [0.6.0] – 2026-11-22
 
 ### Added

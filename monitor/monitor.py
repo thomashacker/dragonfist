@@ -56,6 +56,8 @@ class State:
         self.mark = (0, 0.0)
         self.sfx = collections.deque(maxlen=32)
         self.hits = collections.deque(maxlen=16)
+        self.leds = collections.deque(maxlen=32)
+        self.out = collections.deque(maxlen=16)
 
     def connect(self, port):
         with self.lock:
@@ -77,7 +79,7 @@ class State:
 
     def reset(self):
         self.ch = [Kanal() for _ in GP]
-        self.punch.low, self.punch.ph = 0, None
+        self.punch.reset()
         self.log = collections.deque(maxlen=12)
 
     def feed(self, line):
@@ -126,11 +128,17 @@ class State:
     def tick(self, now):
         with self.lock:
             self.punch.set_dead(sum(c.dead(now) << i for i, c in enumerate(self.ch)), now)
-            r = self.punch.tick(now)
-            if r:
-                r["ok"] and self.sfx.append("treffer")
+            for r in self.punch.tick(now):
                 self.hits.append(r)
                 self.rl and self.rl.punch(r)
+            for k, hand in self.punch.events:
+                self.sfx.append(k)
+                self.leds.append((k, hand))
+            self.punch.events.clear()
+
+    def send(self, cmd):
+        with self.lock:
+            self.out.append(cmd)
 
     def rate(self, now):
         return sum(1 for t in self.rx if now - t < 1)
@@ -154,10 +162,12 @@ def reader(st, port, stop, still=STILL_S):
         dev = port or find_port()
         if dev:
             try:
-                with serial.Serial(dev, 115200, timeout=0.2) as s:
+                with serial.Serial(dev, 115200, timeout=0.05) as s:
                     st.connect(dev)
                     zuletzt, stoesse = time.monotonic(), 0
                     while not stop.is_set():
+                        while st.out:
+                            s.write(st.out.popleft().encode() + b"\n")
                         line = s.readline()
                         now = time.monotonic()
                         if line:
