@@ -200,3 +200,11 @@ def test_retraction_speed_and_path_masks():
         p.edge(ch, v, tus, t)
     r = one(p, 0.3)
     assert r["vb"] == pytest.approx(0.2 / 0.08) and r["am"] == 0b11 and r["bm"] == 1 << B1
+
+
+def test_replay_training_with_crossing_arms():
+    import analyse
+    ev, st, _ = analyse.laden(Path(__file__).parent / "data" / "training2")
+    res = analyse.abspielen(ev, st, Punch)
+    ok = [r for r in res if r["ok"]]
+    assert 89 <= len(ok) <= 95 and len(res) - len(ok) <= 5

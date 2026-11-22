@@ -3,6 +3,13 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.9.2] – 2026-11-22
+
+### Fixed
+- Double counts: a B beam next to an already broken B beam belongs to the same fist, so one punch through two neighbouring B beams is no longer split between two fists (real training: 92 counted for 93 B entries instead of 99)
+- A forearm crossing plane A while another fist is in B no longer ends as a red miss
+- A re-punch with an implausibly short time (> 36 km/h) counts without a speed instead of a bogus value
+
 ## [0.9.1] – 2026-11-22
 
 ### Fixed
