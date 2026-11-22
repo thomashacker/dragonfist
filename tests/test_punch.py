@@ -208,3 +208,10 @@ def test_replay_training_with_crossing_arms():
     res = analyse.abspielen(ev, st, Punch)
     ok = [r for r in res if r["ok"]]
     assert 89 <= len(ok) <= 95 and len(res) - len(ok) <= 5
+
+
+def test_replay_sideways_arm_gives_no_bogus_speed():
+    import analyse
+    ev, st, _ = analyse.laden(Path(__file__).parent / "data" / "training3")
+    ok = [r for r in analyse.abspielen(ev, st, Punch) if r["ok"]]
+    assert 104 <= len(ok) <= 112 and max(r["v"] for r in ok if r["v"]) * 3.6 <= 40

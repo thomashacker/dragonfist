@@ -8,6 +8,8 @@ BREITE = 2                      # so viele nebeneinanderliegende A-Strahlen deck
 ZUCKEN_S = 0.08                 # nur A, kürzer als das: kein Fehlschlag, sondern Arm im Vorbeiwischen
 NACH_US = 40_000                # B so lange frei, dann zählt ein neuer B-Stoß bei Arm in A als neuer Schlag
 NACH_MIN_DT_US = 20_000         # kürzer (> 36 km/h) ist beim Nachschlag kein Messwert: Schlag zählt ohne Tempo
+RUTSCH_US = 6_000               # Nachbarstrahl in A so kurz vorher frei geworden: Arm rutscht seitlich, kein Schlagbeginn
+V_MAX = 40 / 3.6                # schneller ist keine Faust auf 20 cm: Schlag zählt ohne Tempo
 
 
 class Faust:
@@ -30,6 +32,7 @@ class Punch:
         self.amask, self.all, self.dist = (1 << n_a) - 1, (1 << n_ch) - 1, dist_mm / 1000
         self.faeuste, self.hx = [], {"L": 0.35, "R": 0.65}
         self.low, self.dead, self.n, self.last, self.best = 0, 0, 0, None, 0.0
+        self.frei = [None] * n_a
         self.events, self.fertig = [], []
 
     @property
@@ -54,6 +57,9 @@ class Punch:
         else:
             hand = min("LR", key=lambda h: abs(self.hx[h] - x))
         f = Faust(hand, ph, i, tus, now)
+        if ph == "A" and any(0 <= j < self.n_a and self.frei[j] is not None
+                             and (tus - self.frei[j]) % WRAP < RUTSCH_US for j in (i - 1, i + 1)):
+            f.ta = None
         f.arm = any(g.b for g in andere)
         self.faeuste.append(f)
         ph == "A" and self.events.append(("a", hand))
@@ -76,6 +82,8 @@ class Punch:
             return
         if v:
             self.low &= ~bit
+            if i < self.n_a:
+                self.frei[i] = tus
             for f in self.faeuste:
                 if (f.a | f.b) & bit:
                     f.a &= ~bit
@@ -154,7 +162,7 @@ class Punch:
                 self.n += 1
                 r.update(ok=True, n=self.n, msg="TREFFER")
                 self.hx[f.hand] += LERN * (self.x(f) - self.hx[f.hand])
-                if dt:
+                if dt and self.dist * 1e6 / dt <= V_MAX:
                     r["v"] = self.dist * 1e6 / dt
                     self.best = max(self.best, r["v"])
                 if f.tbr is not None and f.tar is not None:
