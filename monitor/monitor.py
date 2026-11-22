@@ -374,8 +374,9 @@ def main():
     rl = None if a.no_log else RunLog(a.runs, NAME, GP, "demo" if a.demo else "")
     ui, st, stop = Ui(screen), State(rl, a.abstand), threading.Event()
     sfx, ui.mute = Sfx(), a.mute or bool(a.shot)
-    threading.Thread(target=demo if a.demo else reader, args=(st, stop) if a.demo else (st, a.port, stop),
-                     daemon=True).start()
+    th = threading.Thread(target=demo if a.demo else reader, args=(st, stop) if a.demo else (st, a.port, stop),
+                          daemon=True)
+    th.start()
 
     clock, t_end = pygame.time.Clock(), time.monotonic() + (12 if a.demo else 4)
     try:
@@ -413,10 +414,12 @@ def main():
             clock.tick(60)
     finally:
         stop.set()
+        th.join(1)
         if rl:
             with st.lock:
                 rl.close()
             print(rl.dir)
+        pygame.quit()
 
 
 if __name__ == "__main__":
