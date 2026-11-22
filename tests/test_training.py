@@ -22,7 +22,7 @@ def test_auswerten():
 
 def test_training_flow_saves_highscore(app):
     to_title(app)
-    frames(app, ["ok", "right", "right", "ok"])
+    frames(app, ["ok", "ok"])
     assert top(app) == "Training"
     for hand in "LRLLR":
         app.sim_punch(hand)
@@ -47,14 +47,14 @@ def test_training_flow_saves_highscore(app):
 
 def test_training_without_punches_returns(app):
     to_title(app)
-    frames(app, ["ok", "right", "right", "ok"])
+    frames(app, ["ok", "ok"])
     frames(app, ["back"])
     assert top(app) == "Modes"
 
 
 def test_discard_goes_home(app):
     to_title(app)
-    frames(app, ["ok", "right", "right", "ok"])
+    frames(app, ["ok", "ok"])
     app.sim_punch("L")
     frames(app, n=3)
     frames(app, ["back", "ok", "right", "ok"])
@@ -86,7 +86,7 @@ def test_aufnahme_logs_truth(app, tmp_path):
 
 def test_hit_without_speed_in_training_and_overlay(app):
     to_title(app)
-    frames(app, ["ok", "right", "right", "ok"])
+    frames(app, ["ok", "ok"])
     tr = app.stack[-1]
     frames(app, n=1)
     r = dict(t=time.monotonic(), ok=True, v=None, vb=None, dt=None, a=0, b=6, hand="L", msg="TREFFER", n=1, am=1, bm=64)

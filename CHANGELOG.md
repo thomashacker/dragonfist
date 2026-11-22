@@ -3,6 +3,19 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.13.0] – 2026-11-22
+
+### Added
+- Mode ZEIT: pick a time limit (10/20/30/60 s), 5 s countdown, the last 5 s are counted down with ticks; then the training stats
+- Mode SCHLÄGE: pick a punch count (10/20/50/100); the clock starts with the first punch and stops at the last
+- Mode REAKTION: pick rounds and punches per combo; after a random pause a beep sounds, measured is the time until the combo is through plane B; punching before the beep is a false start and the round repeats
+- Highscore tabs TRAINING, ZEIT, SCHLÄGE, REAKTION, each with its own columns and ranking (punches per second, or reaction time)
+- Punch results carry the times the fist entered plane A and plane B (`ta_s`, `tb_s`)
+- Sounds: tick, los, piep, ende
+
+### Removed
+- Hidden ARENA placeholder menu
+
 ## [0.12.1] – 2026-11-22
 
 ### Added

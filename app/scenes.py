@@ -100,21 +100,17 @@ class Title(Tiles):
 
 
 class Modes(Tiles):
-    title = "START"
+    title, size = "START", 210
 
     def __init__(self, app):
         from training import Training
+        import modi
         super().__init__(app, [
             ("TRAINING", "Endlos", lambda: app.push(Training(app))),
+            ("ZEIT", "Zeitlimit", lambda: app.push(modi.zeit(app))),
+            ("SCHLÄGE", "Serie", lambda: app.push(modi.serie(app))),
+            ("REAKTION", "Piep!", lambda: app.push(modi.reaktion(app))),
         ])
-
-
-class Arena(Tiles):
-    title, size = "ARENA", 210
-
-    def __init__(self, app):
-        super().__init__(app, [(n, "", lambda n=n: app.push(Placeholder(app, n)))
-                               for n in ("ZEITLIMIT", "SERIE", "REAKTION", "ENDLOS")])
 
 
 def _aufnahme(app):
