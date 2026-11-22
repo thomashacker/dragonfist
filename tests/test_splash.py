@@ -43,7 +43,7 @@ def test_reader_stops_on_exit(tmp_path, monkeypatch):
 
 def test_reader_wakes_silent_pico(monkeypatch):
     import threading
-    import monitor
+    import pico as monitor
 
     geschrieben = []
 
@@ -76,7 +76,7 @@ def test_reader_wakes_silent_pico(monkeypatch):
 
 def test_reader_joins_split_lines(monkeypatch):
     import threading
-    import monitor
+    import pico as monitor
 
     teile = [b"E 3 0 50", b"6293698\n", b"S 1fff\n"]
 

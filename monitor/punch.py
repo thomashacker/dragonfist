@@ -53,7 +53,8 @@ class Punch:
     def _neu(self, ph, i, tus, now):
         x, andere = self.pos(i), self.faeuste
         if len(andere) == 1:
-            hand = "R" if andere[0].hand == "L" else "L"
+            xo = self.x(andere[0])
+            hand = ("L" if x < xo else "R") if abs(x - xo) > 0.1 else "R" if andere[0].hand == "L" else "L"
         else:
             hand = min("LR", key=lambda h: abs(self.hx[h] - x))
         f = Faust(hand, ph, i, tus, now)
@@ -161,13 +162,14 @@ class Punch:
             else:
                 self.n += 1
                 r.update(ok=True, n=self.n, msg="TREFFER")
-                self.hx[f.hand] += LERN * (self.x(f) - self.hx[f.hand])
+                h = self.hx[f.hand] + LERN * (self.x(f) - self.hx[f.hand])
+                self.hx[f.hand] = min(h, 0.45) if f.hand == "L" else max(h, 0.55)
                 if dt and self.dist * 1e6 / dt <= V_MAX:
                     r["v"] = self.dist * 1e6 / dt
                     self.best = max(self.best, r["v"])
                 if f.tbr is not None and f.tar is not None:
                     db = (f.tar - f.tbr) % WRAP
-                    if MIN_DT_US <= db <= MAX_DT_US:
+                    if MIN_DT_US <= db <= MAX_DT_US and self.dist * 1e6 / db <= V_MAX:
                         r["vb"] = self.dist * 1e6 / db
         else:
             r["msg"] = "NICHT DURCH" if f.ph == "A" else "RÜCKWÄRTS"

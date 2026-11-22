@@ -3,6 +3,20 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.12.0] – 2026-11-22
+
+### Added
+- Punch recording: choose person (1–9) and punch type (free, slow, fast, left only, right only, arm forward, cross); both are logged, the choice is kept for the next round
+- `monitor/aufnahmen.py`: evaluates all recordings in one go (counted truth, live, current logic, B entries, share with speed, median, max; totals per punch type)
+
+### Fixed
+- Hand labels could flip for a whole training: two fists in the window are now ordered by position, and each hand's learned position stays on its half
+- Retraction speeds above 40 km/h are treated as measurement errors like forward speeds
+
+### Changed
+- `monitor/pico.py` holds the device side (channels, protocol, state, serial reader); `monitor/monitor.py` keeps the monitor view
+- Menus render at 30 fps, play scenes at 60 fps (less CPU and heat on the Jetson)
+
 ## [0.11.2] – 2026-11-22
 
 ### Added

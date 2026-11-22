@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from monitor import State, NAME, GP
+from pico import State, NAME, GP
 from runlog import RunLog
 
 

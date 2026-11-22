@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from monitor import NAME, A  # noqa: E402
+from pico import NAME, A  # noqa: E402
 
 N_A, N = len(A), len(NAME)
 PAUSE_S = 3
