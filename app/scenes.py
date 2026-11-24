@@ -137,7 +137,7 @@ class Modes(Tiles):
             ("ZEIT", "Zeitlimit", lambda: app.push(modi.zeit(app))),
             ("SCHLÄGE", "Serie", lambda: app.push(modi.serie(app))),
             ("REAKTION", "Piep!", lambda: app.push(modi.reaktion(app))),
-            ("FAUSTREGEN", "Durchhalten", lambda: app.push(regen.faustregen(app))),
+            ("FAUSTREGEN", "Durchhalten", lambda: app.push(regen.Faustregen(app))),
         ])
 
 
