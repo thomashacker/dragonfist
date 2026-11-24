@@ -77,10 +77,10 @@ def test_reaktion_combo_and_false_start(app):
     assert top(app) == "Highscore" and rangliste(app.scores, "REAKTION")[0]["kombo"] == 2
 
 
-def test_faustregen_kurve_und_ende(app):
+def test_faustregen_nur_zu_langsam_zaehlt(app):
     import regen
-    assert regen.takt([0, 0.5, 1.0, 1.5], 1.6) == 2.0 and regen.takt([0, 0.5, 1.0, 1.5], 3.5) == 0.5
-    assert regen.ziel(0) == 1.0 and regen.ziel(20) == 1.5 and regen.ziel(1000) == regen.MAX
+    assert regen.takt([9.0, 9.5, 10.0], 10.4, 0) == 1.0 and regen.takt([10.0], 10.4, 10.0) == 1.0
+    assert regen.ziel(0) == 1.0 and regen.ziel(200) == 6.0
     to_title(app)
     frames(app, ["ok", "left", "ok"])
     sc = app.stack[-1]
@@ -90,23 +90,22 @@ def test_faustregen_kurve_und_ende(app):
     schlag(t0)
     assert sc.phase == "laeuft" and sc.start == t0
     sc.t_last = t0
-    for k in range(1, 41):                                  # 10 s genau im Zieltakt: Ente bleibt sicher
+    for k in range(1, 81):                                  # 20 s doppelt so schnell wie verlangt: oben, sicher
         t = t0 + k * 0.25
         sc.schritt(t)
-        if k % round(4 / regen.ziel(t - t0)) == 0:
-            schlag(t)
-    assert sc.sicher() and sc.luft == 1.0
-    for k in range(1, 21):                                  # aufhören: sinkt langsam, erst nach Sekunden raus
-        sc.schritt(t0 + 10 + k * 0.25)
-        if k == 8:
-            assert sc.sicher()
-    assert not sc.sicher() and sc.hoehe < 0 and sc.luft < 1.0
-    sc.schritt(t0 + 30)
+        schlag(t)
+    assert sc.hoehe == 1.0 and sc.luft == 1.0 and sc.rate >= 3.9
+    for k in range(1, 41):                                  # aufhören: sinkt, Takt fällt sanft statt auf 0
+        sc.schritt(t0 + 20 + k * 0.25)
+        if k == 4:
+            assert sc.sicher() and sc.rate > 2
+    assert not sc.sicher() and sc.luft < 1.0
+    sc.schritt(t0 + 40)
     assert sc.phase == "aus"
     sc.t_aus = time.monotonic() - 2
     frames(app, n=1)
     st = app.stack[-1].st
-    assert top(app) == "Stats" and st["disz"] == "FAUSTREGEN" and st["n"] > 10
+    assert top(app) == "Stats" and st["disz"] == "FAUSTREGEN" and st["n"] == 81
     frames(app, ["ok", "ok", "ok"])
     e = rangliste(app.scores, "FAUSTREGEN")
     assert top(app) == "Highscore" and len(e) == 1 and e[0]["ziel"] == st["ziel"]

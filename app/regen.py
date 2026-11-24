@@ -1,4 +1,4 @@
-"""FAUSTREGEN: jeder Schlag hebt die Ente, dazwischen sinkt sie im Zieltakt. Der Takt wird stetig schneller."""
+"""FAUSTREGEN: jeder Schlag hebt die Ente, sie sinkt im Zieltakt, der stetig schneller wird. Nur zu langsam ist schlecht."""
 import math
 import random
 
@@ -8,35 +8,31 @@ from modi import ROT, Spiel, _zeit
 from scenes import L, BG, INK, DIM, LO, GREEN
 from training import Stats, auswerten, mmss
 
-START, ANSTIEG, MAX = 1.0, 0.025, 4.0     # Schläge/s, +0,25 alle 10 s, Erkennung ist bis 4/s geprüft
-HUB, FEDER, BAND = 0.15, 0.08, 0.4         # Höhe pro Schlag, Zug zur Mitte, sicherer Bereich (Höhe -1 … 1)
-LUFT_AB, LUFT_AUF = 0.3, 0.2               # pro Sekunde außerhalb / innerhalb
-TOENE = 9                                  # Takt-Ton folgt der Höhe in so vielen Stufen
+START, ANSTIEG = 1.0, 0.025                # Schläge/s, +0,25 alle 10 s, ohne Obergrenze
+HUB, BAND = 0.15, 0.4                      # Höhe pro Schlag (-1 … 1), unter -BAND geht die Luft aus
+LUFT_AB, LUFT_AUF = 0.3, 0.2               # pro Sekunde unter / über der Grenze
+FENSTER = 3.0                              # s, über die der eigene Takt gemittelt wird
 PIX = 6                                    # Kantenlänge eines Szenen-Pixels
 
 
 def ziel(t):
-    return min(MAX, START + ANSTIEG * t)
+    return START + ANSTIEG * t
 
 
-def takt(ts, now, n=5):
-    """Schläge pro Sekunde aus den letzten Abständen; bleibt man stehen, fällt der Wert mit der Pause."""
-    ts = ts[-n:]
-    if len(ts) < 2:
-        return 0.0
-    r = (len(ts) - 1) / max(ts[-1] - ts[0], 1e-3)
-    pause = now - ts[-1]
-    return min(r, 1 / pause) if pause > 1 / r else r
+def takt(ts, now, start):
+    """Schläge pro Sekunde in den letzten Sekunden; fällt nicht auf 0, nur weil die Hand gerade zurück ist."""
+    fenster = min(FENSTER, max(1.0, now - start))
+    return sum(now - t <= fenster for t in ts[-64:]) / fenster
 
 
 class Faustregen(Spiel):
-    sounds = ("verbunden", "getrennt")          # nur der Takt-Ton spricht, die Schläge spürt man selbst
+    sounds = ("verbunden", "getrennt")          # nur der Takt spricht, die Schläge spürt man selbst
 
     def __init__(self, app, rnd=None):
         super().__init__(app)
         self.rnd = rnd or random.Random()
         self.phase, self.t0, self.start, self.t_aus, self.t_last = "warten", None, None, None, None
-        self.ts, self.luft, self.tick_t, self.warn, self.hoehe = [], 1.0, None, 1.0, 0.0
+        self.ts, self.luft, self.tick_t, self.hoehe = [], 1.0, None, 0.0
         self.ziel, self.rate, self.ey, self.tropfen, self.regen_s = START, 0.0, None, [], 0.0
         self.blitz, self.blitz_bis, self.blitz_t = None, 0.0, 0.0
 
@@ -44,31 +40,26 @@ class Faustregen(Spiel):
         if self.phase in ("warten", "laeuft") and r["ok"]:
             if self.phase == "warten":
                 self.phase, self.start = "laeuft", _zeit(r)
-                self.app.play("los")
             self.ts.append(_zeit(r))
             self.punches.append(r | {"t": _zeit(r) - self.start})
             self.hoehe = min(1.0, self.hoehe + HUB)
 
     def sicher(self):
-        return abs(self.hoehe) <= BAND
+        return self.hoehe >= -BAND
 
     def schritt(self, now):
         dt, self.t_last = now - (self.t_last or now), now
-        if self.tick_t is None or now >= self.tick_t:                   # Tonhöhe des Takts = Höhe der Ente
+        if self.phase != "aus" and (self.tick_t is None or now >= self.tick_t):
             self.tick_t = (self.tick_t or now) + 1 / self.ziel
-            self.app.play(f"takt{round((self.hoehe + 1) / 2 * (TOENE - 1))}")
+            self.app.play("takt" if self.hoehe >= 0 else "takt_nass")
         if self.phase == "laeuft":
             t = now - self.start
-            self.ziel, self.rate = ziel(t), takt(self.ts, now)
-            self.hoehe = max(-1.0, self.hoehe - HUB * self.ziel * dt - FEDER * self.hoehe * dt)
+            self.ziel, self.rate = ziel(t), takt(self.ts, now, self.start)
+            self.hoehe = max(-1.0, self.hoehe - HUB * self.ziel * dt)          # sinkt im Zieltakt, Schläge heben
             if self.sicher():
                 self.luft = min(1.0, self.luft + LUFT_AUF * dt)
             else:
                 self.luft -= LUFT_AB * dt
-            for stufe in (0.35, 0.15):
-                if self.luft < stufe <= self.warn:
-                    self.app.play("fehl")
-            self.warn = self.luft
             if self.luft <= 0:
                 self.phase, self.t_aus, self.luft = "aus", now, 0.0
                 self.app.play("ende")
@@ -85,17 +76,14 @@ class Faustregen(Spiel):
         f = self.app.font
         f.text(s, "FAUSTREGEN", (L.W // 2, L.y(40)), "l", INK, "center")
         g = pygame.Rect(40, L.y(130), L.W - 80, L.H - L.y(130) - 110)
-        im = abs(self.rate / self.ziel - 1) <= 0.2
         t = (self.t_aus or now) - (self.start or now)
         y = L.y(90)
         f.text(s, f"ZIEL {self.ziel:.2f}/s", (40, y), "m", INK, "midleft")
         f.text(s, mmss(t), (L.W // 2, y), "m", INK, "center")
-        f.text(s, f"DU {self.rate:.2f}/s", (L.W - 40, y), "m", GREEN if im else ROT, "midright")
+        if self.phase != "warten":
+            col = GREEN if self.rate >= self.ziel else INK if self.rate >= 0.85 * self.ziel else ROT
+            f.text(s, f"DU {self.rate:.2f}/s", (L.W - 40, y), "m", col, "midright")
         self.glas(s, g, now, dt)
-        if self.phase == "warten":
-            f.text(s, "LOS MIT DEM ERSTEN SCHLAG", (g.centerx, g.y + 110), "m", INK, "center")
-            f.text(s, "jeder Schlag hebt die Ente  ·  im Takt schwimmt sie", (L.W // 2, g.y + 150), "s", DIM, "center")
-            f.text(s, "tiefer Ton: schneller  ·  hoher Ton: langsamer", (L.W // 2, g.y + 180), "s", DIM, "center")
         if self.phase == "aus":
             f.text(s, "ABGESOFFEN", (g.centerx, g.y + 110), "xl", ROT, "center")
         b = pygame.Rect(150, L.H - 74, L.W - 190, 18)
@@ -103,7 +91,6 @@ class Faustregen(Spiel):
         pygame.draw.rect(s, LO, b, 1)
         col = GREEN if self.luft > 0.5 else INK if self.luft > 0.25 else ROT
         pygame.draw.rect(s, col, (b.x, b.y, int(b.w * self.luft), b.h))
-        f.text(s, "ZURÜCK  abbrechen", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
     def glas(self, s, g, now, dt):
         """Szene in grober Auflösung zeichnen und ohne Glättung hochskalieren: alles im selben Pixelraster."""
@@ -131,7 +118,7 @@ class Faustregen(Spiel):
         soll = max(20.0, oben - self.hoehe * spiel - len(ENTE) + 3)                 # oben bleibt Platz für den Blitz
         self.ey = soll if self.ey is None else self.ey + (soll - self.ey) * min(1.0, dt * 5)
         y = round(self.ey + 0.6 * math.sin(now * 4))
-        farbe = GREEN if abs(self.hoehe) <= BAND * 0.6 else INK if self.sicher() else ROT
+        farbe = GREEN if self.hoehe >= 0 else INK if self.sicher() else ROT
         lo.blit(ente(farbe), (w // 2 - len(ENTE[0]) // 2, y))
         if y > oben + 2:
             for k in range(3):
@@ -143,12 +130,9 @@ class Faustregen(Spiel):
         pygame.draw.rect(s, LO, (g.x, g.y, w * PIX, h * PIX), 2)
 
     def gewitter(self, now, w, oben):
-        """Blitze aus den Wolken; ist die Ente zu schnell oben, schlagen sie oft und auf sie zu."""
         if now >= self.blitz_t:
-            hoch = self.hoehe > BAND
-            self.blitz_t = now + (self.rnd.uniform(0.5, 1.0) if hoch else self.rnd.uniform(2.5, 5.0))
-            x = w // 2 + self.rnd.randint(-3, 3) if hoch else self.rnd.randrange(4, w - 4)
-            ende = round(self.ey) + 4 if hoch and self.ey is not None else self.rnd.randint(oben // 3, oben // 2)
+            self.blitz_t = now + self.rnd.uniform(2.5, 5.0)
+            x, ende = self.rnd.randrange(4, w - 4), self.rnd.randint(oben // 3, oben // 2)
             self.blitz, y = [(x, 9)], 9
             while y < ende:
                 y = min(ende, y + self.rnd.randint(2, 4))
