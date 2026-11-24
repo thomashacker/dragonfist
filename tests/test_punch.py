@@ -213,7 +213,7 @@ def test_aufnahmen_compares_truth(tmp_path):
     t0, t1 = float(z[0].split()[0]), float(z[-1].split()[0])
     (tmp_path / "lauf").mkdir()
     (tmp_path / "lauf" / "raw.log").write_text("\n".join(
-        [f"{t0:.4f} # AUFNAHME START dauer=30 person=2 art=SCHNELL"] + z +
+        [f"{t0:.4f} # AUFNAHME START dauer={t1 - t0 + 1:.0f} person=2 art=SCHNELL"] + z +
         [f"{t1 + 0.1:.4f} # AUFNAHME ENDE erkannt=100 L=50 R=50 fehl=0 gezaehlt=110"]), encoding="utf-8")
     (r,) = aufnahmen.aufnahmen(tmp_path / "lauf", Punch)
     assert r["person"] == "2" and r["art"] == "SCHNELL" and r["gezaehlt"] == 110 and r["live"] == 100

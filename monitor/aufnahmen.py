@@ -22,13 +22,13 @@ def aufnahmen(lauf, Punch, dist=200):
         if m.startswith("AUFNAHME START"):
             start, kopf = tm, dict(x.split("=") for x in m.split()[2:] if "=" in x)
         elif m.startswith("AUFNAHME ENDE") and start is not None:
-            w = dict(x.split("=") for x in m.split()[2:])
-            ok = [x for x in res if x["ok"] and start <= x["t"] <= tm + 0.5]
+            w, ende = dict(x.split("=") for x in m.split()[2:]), min(tm, start + float(kopf.get("dauer", 1e9)))
+            ok = [x for x in res if x["ok"] and start <= x["t"] <= ende]
             v = [x["v"] * 3.6 for x in ok if x["v"]]
             out.append(dict(lauf=Path(lauf).name, person=kopf.get("person", "?"), art=kopf.get("art", "?"),
                             gezaehlt=int(w["gezaehlt"]), live=int(w["erkannt"]), jetzt=len(ok),
-                            l=sum(x["hand"] == "L" for x in ok), b=analyse.b_eintritte(ev, start, tm),
-                            fehl=sum(not x["ok"] for x in res if start <= x["t"] <= tm + 0.5),
+                            l=sum(x["hand"] == "L" for x in ok), b=analyse.b_eintritte(ev, start, ende),
+                            fehl=sum(not x["ok"] for x in res if start <= x["t"] <= ende),
                             tempo=len(v) / len(ok) if ok else 0.0, median=statistics.median(v) if v else 0.0,
                             vmax=max(v, default=0.0)))
             start = None

@@ -3,6 +3,14 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.15.0] – 2026-11-24
+
+### Added
+- Modus FAUSTREGEN: einen Schlagtakt halten, der alle 10 s um 0,25 Schläge/s steigt (bis 4/s). Pixel-Szene im App-Stil. Im Bereich ±20 % sitzt die Ente grün auf dem Wasser, zu langsam sinkt sie, zu schnell fliegt sie in die Regenwolke; außerhalb geht die Luft aus. Gewertet wird die Durchhaltezeit, eigene Highscore-Disziplin. Start-Takt und Metronom (TAKT-HILFE) einstellbar.
+
+### Fixed
+- `monitor/aufnahmen.py` wertet nur noch die eigentliche Aufnahmedauer aus, nicht die Zeit bis zum Eintippen der gezählten Zahl; „jetzt“ stimmt damit wieder mit der Live-Zählung überein.
+
 ## [0.14.0] – 2026-11-24
 
 ### Added
