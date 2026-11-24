@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.16.1] – 2026-11-24
+
+### Fixed
+- Leistungstest der Schlag-Logik lag auf dem Jetson bei 97 % seiner Grenze und ließ Updates sporadisch scheitern; Grenze auf 1,5 s (80 000 Flanken).
+
 ## [0.16.0] – 2026-11-24
 
 ### Changed
