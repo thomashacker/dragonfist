@@ -3,6 +3,13 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.17.0] – 2026-11-25
+
+### Changed
+- FAUSTREGEN mit Trägheit: jeder Schlag hebt die Ente, dazwischen sinkt sie im Zieltakt. Wer zu langsam wird, sinkt allmählich statt sofort zu verlieren (Pause bei 1/s: 3 s bis zur Gefahrenzone, 6 s bis zum Ende; 20 % zu langsam: rund 25 s).
+- Der Takt-Ton gleitet in 9 Stufen mit der Höhe der Ente (E4 … E6), so hört man den Trend früh.
+- Kein Countdown mehr: das Spiel beginnt mit dem ersten Schlag. Ente grün in der Mitte, weiß am Rand der sicheren Zone, rot außerhalb.
+
 ## [0.16.1] – 2026-11-24
 
 ### Fixed
