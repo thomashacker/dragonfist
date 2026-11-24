@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.14.0] – 2026-11-24
+
+### Added
+- Einstellung AUSRICHTUNG (QUER, HOCH LINKS, HOCH RECHTS) für das hochkant eingebaute Display der Seitenkonsole, Standard HOCH LINKS. Im Vollbild dreht die App das Bild selbst aufs Panel, im Fenster steht es hoch. Umschalten wirkt sofort, auch für den Splash.
+- Alle Screens im Hochformat: Kacheln als Spalte, Grafiken mit den Kennzahlen darunter, Highscore ohne Datum, zu breiter Text wird verkleinert.
+
 ## [0.13.3] – 2026-11-22
 
 ### Changed

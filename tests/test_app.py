@@ -106,7 +106,7 @@ def test_quit_from_settings(app):
 def test_bundled_font(app):
     from monitor import FONT
     assert FONT.exists()
-    assert app.font.f["xl"].size("DRAGONFIST")[0] < scenes.W
+    assert app.font.f["xl"].size("DRAGONFIST")[0] < scenes.QUER[0]
 
 
 def test_music_follows_scene(app):
@@ -145,3 +145,20 @@ def test_leds_dance_in_menu_and_follow_punch_in_mode(app):
         app.led[hand] = ("punkt", time.monotonic() - 1)
     frames(app, n=1)
     assert app.st.out[-1] == "L 000000 000000"
+
+
+def test_hochformat_umschalten_und_drehen(app):
+    assert app.cfg["ausrichtung"] == "hoch_l" and app.screen.get_size() == scenes.HOCH
+    to_title(app)
+    app.push(scenes.Settings(app))
+    zeile(app.stack[-1], "AUSRICHTUNG")
+    frames(app, ["left"])
+    assert app.cfg["ausrichtung"] == "quer" and app.screen.get_size() == scenes.QUER
+    frames(app, ["right"])
+    for sc in (scenes.Modes(app), scenes.Settings(app), scenes.Calibration(app)):
+        app.push(sc)
+        frames(app, n=1)
+    app.voll, app.display = True, None
+    app.ausrichtung()
+    frames(app, n=1)
+    assert app.drehen == 90 and app.screen.get_size() == scenes.HOCH and app.display.get_size() == scenes.QUER

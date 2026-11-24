@@ -5,8 +5,8 @@ import time
 
 import pygame
 
-from scenes import W, H, BG, INK, DIM, LO, GREEN, SPIEL, Scene
-from training import Stats, Wahl, auswerten, zaehler, _mittel
+from scenes import L, BG, INK, DIM, LO, GREEN, SPIEL, Scene
+from training import Stats, Wahl, auswerten, graf_rect, kennzahlen, zaehler, _mittel
 
 COUNTDOWN = 5
 ROT = (255, 70, 60)
@@ -48,15 +48,15 @@ class Setup(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, self.titel, (W // 2, 60), "l", INK, "center")
+        f.text(s, self.titel, (L.W // 2, L.y(60)), "l", INK, "center")
         y0 = 300 - (len(self.zeilen) - 1) * 80
         for k, (name, _, _, einheit) in enumerate(self.zeilen):
-            y, on = y0 + k * 160, k == self.z
-            f.text(s, name, (W // 2, y - 66), "s", INK if on else DIM, "center")
+            y, on = L.y(y0 + k * 160), k == self.z
+            f.text(s, name, (L.W // 2, y - 66), "s", INK if on else DIM, "center")
             w = f"{self.wert(k)}{einheit}"
-            f.text(s, f"<  {w}  >" if on else w, (W // 2, y + 10), "xl" if on else "l", INK if on else DIM, "center")
+            f.text(s, f"<  {w}  >" if on else w, (L.W // 2, y + 10), "xl" if on else "l", INK if on else DIM, "center")
         hilfe = "▲▼ Zeile  ·  " if len(self.zeilen) > 1 else ""
-        f.text(s, hilfe + "◀▶ ändern  ·  OK Start  ·  ZURÜCK", (W // 2, H - 18), "xs", DIM, "center")
+        f.text(s, hilfe + "◀▶ ändern  ·  OK Start  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
 class Spiel(Scene):
@@ -92,7 +92,7 @@ class Zeit(Spiel):
         f = self.app.font
         if self.t0 is None:
             self.t0 = now
-        f.text(s, f"ZEIT  ·  {self.limit} s", (W // 2, 46), "l", INK, "center")
+        f.text(s, f"ZEIT  ·  {self.limit} s", (L.W // 2, L.y(46)), "l", INK, "center")
         if self.phase == "countdown":
             n = COUNTDOWN - int(now - self.t0)
             if n <= 0:
@@ -100,8 +100,8 @@ class Zeit(Spiel):
                 self.app.play("los")
                 return
             self.ton(n)
-            f.text(s, str(n), (W // 2, 280), "xl", INK, "center")
-            f.text(s, "bereit machen", (W // 2, 370), "m", DIM, "center")
+            f.text(s, str(n), (L.W // 2, L.y(280)), "xl", INK, "center")
+            f.text(s, "bereit machen", (L.W // 2, L.y(370)), "m", DIM, "center")
             return
         rest = self.limit - (now - self.start)
         if self.phase == "laeuft" and rest <= 0:
@@ -111,16 +111,15 @@ class Zeit(Spiel):
             if now - self.ende > 0.6:
                 st = auswerten(self.punches, self.limit) | dict(disz="ZEIT", ziel=self.limit)
                 self.app.replace(Stats(self.app, st), 0.4)
-            f.text(s, "ZEIT!", (W // 2, 170), "xl", GREEN, "center")
+            f.text(s, "ZEIT!", (L.W // 2, L.y(170)), "xl", GREEN, "center")
         else:
             letzte = rest <= COUNTDOWN
             letzte and self.ton(math.ceil(rest))
-            f.text(s, str(math.ceil(rest)) if letzte else f"{rest:.1f}", (W // 2, 170), "xl", ROT if letzte else GREEN,
+            f.text(s, str(math.ceil(rest)) if letzte else f"{rest:.1f}", (L.W // 2, L.y(170)), "xl", ROT if letzte else GREEN,
                    "center")
-            pygame.draw.rect(s, LO, (W // 2 - 300, 230, 600, 12), 1)
-            pygame.draw.rect(s, GREEN, (W // 2 - 300, 230, int(600 * (1 - rest / self.limit)), 12))
-        zaehler(s, f, [r for r in self.punches if r["ok"]], 350)
-        f.text(s, "ZURÜCK  abbrechen", (W // 2, H - 18), "xs", DIM, "center")
+            balken(s, L.y(230), 1 - rest / self.limit)
+        zaehler(s, f, [r for r in self.punches if r["ok"]], L.y(350))
+        f.text(s, "ZURÜCK  abbrechen", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
 class Serie(Spiel):
@@ -143,7 +142,7 @@ class Serie(Spiel):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, f"SCHLÄGE  ·  {self.ziel}", (W // 2, 46), "l", INK, "center")
+        f.text(s, f"SCHLÄGE  ·  {self.ziel}", (L.W // 2, L.y(46)), "l", INK, "center")
         n = sum(r["ok"] for r in self.punches)
         if self.dauer is not None:
             self.t_ende = self.t_ende or now
@@ -153,14 +152,13 @@ class Serie(Spiel):
             uhr, col = self.dauer, GREEN
         elif self.start is None:
             uhr, col = 0.0, DIM
-            f.text(s, "Los geht's mit dem ersten Schlag", (W // 2, 250), "s", DIM, "center")
+            f.text(s, "Los geht's mit dem ersten Schlag", (L.W // 2, L.y(250)), "s", DIM, "center")
         else:
             uhr, col = now - self.start, INK
-        f.text(s, f"{uhr:.2f}", (W // 2, 160), "xl", col, "center")
-        pygame.draw.rect(s, LO, (W // 2 - 300, 220, 600, 12), 1)
-        pygame.draw.rect(s, GREEN, (W // 2 - 300, 220, int(600 * min(1, n / self.ziel)), 12))
-        zaehler(s, f, [r for r in self.punches if r["ok"]], 350, f"{n} / {self.ziel}")
-        f.text(s, "ZURÜCK  abbrechen", (W // 2, H - 18), "xs", DIM, "center")
+        f.text(s, f"{uhr:.2f}", (L.W // 2, L.y(160)), "xl", col, "center")
+        balken(s, L.y(220), min(1, n / self.ziel))
+        zaehler(s, f, [r for r in self.punches if r["ok"]], L.y(350), f"{n} / {self.ziel}")
+        f.text(s, "ZURÜCK  abbrechen", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
 class Reaktion(Spiel):
@@ -193,7 +191,7 @@ class Reaktion(Spiel):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "REAKTION", (W // 2, 46), "l", INK, "center")
+        f.text(s, "REAKTION", (L.W // 2, L.y(46)), "l", INK, "center")
         if self.phase == "neu":
             if len(self.zeiten) >= self.runden:
                 return self.fertig(now)
@@ -208,22 +206,22 @@ class Reaktion(Spiel):
         elif self.phase == "anzeige" and now - self.t_phase > self.ZEIGEN:
             self.phase = "neu"
         k = min(len(self.zeiten) + 1, self.runden)
-        f.text(s, f"RUNDE {k} / {self.runden}  ·  KOMBO {self.kombo}", (W // 2, 110), "s", DIM, "center")
+        f.text(s, f"RUNDE {k} / {self.runden}  ·  KOMBO {self.kombo}", (L.W // 2, L.y(110)), "s", DIM, "center")
         if self.phase == "jetzt":
-            pygame.draw.rect(s, GREEN, (W // 2 - 260, 170, 520, 220))
-            f.text(s, "JETZT!", (W // 2, 260), "xl", BG, "center")
+            r = pygame.draw.rect(s, GREEN, (L.W // 2 - 260, L.y(170), 520, L.y(220)))
+            f.text(s, "JETZT!", (L.W // 2, r.centery - 20), "xl", BG, "center")
             if self.kombo > 1:
-                f.text(s, f"{len(self.treffer)} / {self.kombo}", (W // 2, 350), "m", BG, "center")
+                f.text(s, f"{len(self.treffer)} / {self.kombo}", (L.W // 2, r.centery + 70), "m", BG, "center")
         elif self.phase == "anzeige":
             gut = self.msg.endswith("ms")
-            f.text(s, self.msg, (W // 2, 280), "xl", GREEN if gut else ROT, "center")
+            f.text(s, self.msg, (L.W // 2, L.y(280)), "xl", GREEN if gut else ROT, "center")
         else:
-            f.text(s, "warten …", (W // 2, 280), "l", DIM, "center")
+            f.text(s, "warten …", (L.W // 2, L.y(280)), "l", DIM, "center")
         gut = [t for _, t in self.zeiten if t is not None]
         if gut:
             f.text(s, f"Ø {_mittel(gut) * 1000:.0f} ms  ·  beste {min(gut) * 1000:.0f} ms  ·  Fehlstarts {self.fehlstart}",
-                   (W // 2, 470), "s", DIM, "center")
-        f.text(s, "ZURÜCK  abbrechen", (W // 2, H - 18), "xs", DIM, "center")
+                   (L.W // 2, L.y(470)), "s", DIM, "center")
+        f.text(s, "ZURÜCK  abbrechen", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
     def fertig(self, now):
         gut = [t for _, t in self.zeiten if t is not None]
@@ -254,8 +252,8 @@ class ReaktionStats(Scene):
             self.t0 = now
         k = min(1.0, (now - self.t0) / 1.5)
         f, st = self.app.font, self.st
-        f.text(s, "REAKTIONSZEITEN", (W // 2, 46), "l", INK, "center")
-        r = pygame.Rect(80, 130, 600, 320)
+        f.text(s, "REAKTIONSZEITEN", (L.W // 2, L.y(46)), "l", INK, "center")
+        r = graf_rect()
         pygame.draw.rect(s, LO, r, 1)
         werte = [t for _, t in st["zeiten"]]
         ymax = max([t for t in werte if t] + [0.5]) * 1.15
@@ -269,14 +267,17 @@ class ReaktionStats(Scene):
             pygame.draw.rect(s, col, (r.x + i * bw + bw * 0.15, r.bottom - h, bw * 0.7, h))
         f.text(s, f"{ymax * 1000:.0f} ms", (r.x - 10, r.y), "xs", DIM, "topright")
         f.text(s, "0", (r.x - 10, r.bottom), "xs", DIM, "bottomright")
-        for y, name, wert, col in ((140, "Ø", st["r_avg"], INK), (250, "BESTE", st["r_best"], GREEN)):
-            f.text(s, name, (730, y), "s", DIM)
-            f.text(s, f"{wert * 1000 * k:.0f}", (730, y + 26), "l", col)
-            f.text(s, "ms", (730 + f.f["l"].size(f"{wert * 1000:.0f}")[0] + 10, y + 46), "xs", DIM)
-        f.text(s, "FEHLSTARTS", (730, 360), "s", DIM)
-        f.text(s, str(st["fehlstart"]), (730, 386), "l", ROT if st["fehlstart"] else INK)
+        kennzahlen(s, f, [(name, f"{wert * 1000 * k:.0f}", col, "ms", "l") for name, wert, col in
+                          (("Ø", st["r_avg"], INK), ("BESTE", st["r_best"], GREEN))]
+                   + [("FEHLSTARTS", str(st["fehlstart"]), ROT if st["fehlstart"] else INK, "", "l")], r.bottom + 30)
         f.text(s, f"KOMBO {st['kombo']}  ·  {st['ziel']} RUNDEN", (r.centerx, r.bottom + 30), "s", DIM, "center")
-        f.text(s, "OK  speichern oder verwerfen", (W // 2, H - 18), "xs", DIM, "center")
+        f.text(s, "OK  speichern oder verwerfen", (L.W // 2, L.H - 18), "xs", DIM, "center")
+
+
+def balken(s, y, k, h=12):
+    w = min(600, L.W - 80)
+    pygame.draw.rect(s, LO, ((L.W - w) // 2, y, w, h), 1)
+    pygame.draw.rect(s, GREEN, ((L.W - w) // 2, y, int(w * k), h))
 
 
 def zeit(app):

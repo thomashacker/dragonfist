@@ -2,7 +2,8 @@
 (raw.log, Zeilen '# AUFNAHME …'), damit sich die Erkennung mit monitor/analyse.py gegen die Wahrheit prüfen lässt."""
 import pygame
 
-from scenes import W, H, BG, INK, DIM, LO, GREEN, SPIEL, Scene
+from modi import balken
+from scenes import L, BG, INK, DIM, LO, GREEN, SPIEL, Scene
 
 DAUERN = (15, 30, 60)
 ARTEN = ("FREI", "LANGSAM", "SCHNELL", "NUR LINKS", "NUR RECHTS", "ARM VORNE", "KREUZ")
@@ -68,16 +69,18 @@ class Aufnahme(Scene):
 
     def draw(self, s, now):
         f, ph = self.app.font, self.phase
-        f.text(s, "SCHLAG-AUFNAHME", (W // 2, 46), "l", INK, "center")
+        f.text(s, "SCHLAG-AUFNAHME", (L.W // 2, L.y(46)), "l", INK, "center")
         if ph == "wahl":
-            f.text(s, "Schlagen und im Kopf mitzählen, danach die echte Zahl eingeben.", (W // 2, 120), "s", DIM,
+            f.text(s, "Schlagen und im Kopf mitzählen, danach die echte Zahl eingeben.", (L.W // 2, L.y(120)), "s", DIM,
                    "center")
             for z, (name, _) in enumerate(ZEILEN):
-                y, on = 220 + z * 90, z == self.zeile
-                f.text(s, name, (W // 2 - 60, y), "m", INK if on else DIM, "midright")
+                y, on = L.y(220 + z * 90), z == self.zeile
+                lx, wx = (L.W // 2, L.W // 2) if L.hoch else (L.W // 2 - 60, L.W // 2 + 180)
+                L.hoch and f.text(s, name, (lx, y - 40), "s", INK if on else DIM, "center")
+                L.hoch or f.text(s, name, (lx, y), "m", INK if on else DIM, "midright")
                 wert = self.wert(z) + (" s" if name == "DAUER" else "")
-                f.text(s, f"<  {wert}  >" if on else wert, (W // 2 + 180, y), "l", INK if on else DIM, "center")
-            f.text(s, "▲▼ Zeile  ·  ◀▶ ändern  ·  OK Start  ·  ZURÜCK", (W // 2, H - 18), "xs", DIM, "center")
+                f.text(s, f"<  {wert}  >" if on else wert, (wx, y + 10 * L.hoch), "l", INK if on else DIM, "center")
+            f.text(s, "▲▼ Zeile  ·  ◀▶ ändern  ·  OK Start  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
             return
         if self.t0 is None:
             self.t0 = now
@@ -92,8 +95,8 @@ class Aufnahme(Scene):
                 self.app.st.note(f"AUFNAHME START dauer={self.dauer} person={self.wert(0)} "
                                  f"art={self.wert(1).replace(' ', '_')}")
                 return
-            f.text(s, str(n), (W // 2, 300), "xl", INK, "center")
-            f.text(s, "gleich geht's los", (W // 2, 400), "m", DIM, "center")
+            f.text(s, str(n), (L.W // 2, L.y(300)), "xl", INK, "center")
+            f.text(s, "gleich geht's los", (L.W // 2, L.y(400)), "m", DIM, "center")
         elif ph == "laeuft":
             rest = self.dauer - u
             if rest <= 0:
@@ -102,25 +105,24 @@ class Aufnahme(Scene):
                 self.zahl = sum(r["ok"] for r in self.punches)
                 return
             ok = [r for r in self.punches if r["ok"]]
-            f.text(s, f"{rest:4.1f}", (W // 2, 230), "xl", GREEN, "center")
-            pygame.draw.rect(s, LO, (W // 2 - 300, 300, 600, 14), 1)
-            pygame.draw.rect(s, GREEN, (W // 2 - 300, 300, int(600 * u / self.dauer), 14))
+            f.text(s, f"{rest:4.1f}", (L.W // 2, L.y(230)), "xl", GREEN, "center")
+            balken(s, L.y(300), u / self.dauer, 14)
             f.text(s, f"L {sum(r['hand'] == 'L' for r in ok)}   ·   R {sum(r['hand'] == 'R' for r in ok)}",
-                   (W // 2, 400), "l", INK, "center")
-            f.text(s, "ZURÜCK  abbrechen", (W // 2, H - 18), "xs", DIM, "center")
+                   (L.W // 2, L.y(400)), "l", INK, "center")
+            f.text(s, "ZURÜCK  abbrechen", (L.W // 2, L.H - 18), "xs", DIM, "center")
         elif ph == "zaehlen":
-            f.text(s, "Wie viele Schläge hast du gemacht?", (W // 2, 160), "m", INK, "center")
-            r = pygame.Rect(W // 2 - 150, 230, 300, 140)
+            f.text(s, "Wie viele Schläge hast du gemacht?", (L.W // 2, L.y(160)), "m", INK, "center")
+            r = pygame.Rect(L.W // 2 - 150, L.y(230), 300, 140)
             pygame.draw.rect(s, INK, r)
             f.text(s, str(self.zahl), r.center, "xl", BG, "center")
-            f.text(s, "▲▼ ±1  ·  ◀▶ ±10  ·  OK bestätigen", (W // 2, H - 18), "xs", DIM, "center")
+            f.text(s, "▲▼ ±1  ·  ◀▶ ±10  ·  OK bestätigen", (L.W // 2, L.H - 18), "xs", DIM, "center")
         else:
             ok = [r for r in self.punches if r["ok"]]
             q = len(ok) / self.zahl * 100 if self.zahl else 0
-            f.text(s, f"{len(ok)}  von  {self.zahl}", (W // 2, 220), "xl", INK, "center")
-            f.text(s, f"erkannt  ·  {q:.0f} %", (W // 2, 310), "m", GREEN if 95 <= q <= 105 else DIM, "center")
+            f.text(s, f"{len(ok)}  von  {self.zahl}", (L.W // 2, L.y(220)), "xl", INK, "center")
+            f.text(s, f"erkannt  ·  {q:.0f} %", (L.W // 2, L.y(310)), "m", GREEN if 95 <= q <= 105 else DIM, "center")
             nl = sum(r["hand"] == "L" for r in ok)
-            f.text(s, f"L {nl}  ·  R {len(ok) - nl}  ·  Fehlschläge {len(self.punches) - len(ok)}", (W // 2, 370), "s",
+            f.text(s, f"L {nl}  ·  R {len(ok) - nl}  ·  Fehlschläge {len(self.punches) - len(ok)}", (L.W // 2, L.y(370)), "s",
                    DIM, "center")
-            f.text(s, "gespeichert im Lauf-Log", (W // 2, 430), "s", DIM, "center")
-            f.text(s, "OK  nochmal  ·  ZURÜCK", (W // 2, H - 18), "xs", DIM, "center")
+            f.text(s, "gespeichert im Lauf-Log", (L.W // 2, L.y(430)), "s", DIM, "center")
+            f.text(s, "OK  nochmal  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
