@@ -3,6 +3,13 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.18.0] – 2026-11-25
+
+### Changed
+- FAUSTREGEN: nur zu langsam zählt. Schneller ist immer erlaubt (die Ente bleibt oben), das Ziel steigt ohne Obergrenze.
+- Eigener Takt gemittelt über die letzten 3 s; fällt nicht mehr auf 0, wenn die Hand zurück ist.
+- Takt als weicher Kick statt Piepen, unter Wasser dumpf. Keine Warntöne, keine Erklärtexte, Blitze nur noch Kulisse.
+
 ## [0.17.0] – 2026-11-25
 
 ### Changed

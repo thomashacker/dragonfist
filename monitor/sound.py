@@ -25,14 +25,14 @@ DEFAULTS = {
     "punkt": dict(notes=["G5", "B5", "E6"], ms=450, gap=55, decay=7, harm=0.19, vol=0.22),
     "fehl": dict(wave="square", notes=["D4", "A3"], ms=220, gap=80, decay=12, harm=0.1, lofi=1, vol=0.09),
     "tick": dict(notes=["A5"], ms=120, decay=22, harm=0.12, vol=0.2),
+    "takt": dict(notes=["A2"], ms=200, slide=-14, attack=1, decay=16, harm=0.35, vol=0.6),
+    "takt_nass": dict(notes=["E2"], ms=240, slide=-8, attack=4, decay=12, harm=0.05, lofi=2, vol=0.45),
     "los": dict(notes=["E6"], ms=420, decay=6, harm=0.2, vol=0.24),
     "piep": dict(wave="square", notes=["A6"], ms=180, decay=4, harm=0.05, vol=0.12),
     "ende": dict(notes=["E6", "C6", "G5", "C5"], ms=600, gap=70, decay=6, harm=0.19, vol=0.2),
     "bruch": dict(notes=["G4"], ms=260, decay=14, harm=0.15, vol=0.22),
     "frei": dict(notes=["D5"], ms=200, decay=18, harm=0.12, vol=0.15),
 }
-DEFAULTS |= {f"takt{i}": dict(wave="triangle", notes=[n], ms=110, decay=30, harm=0.1, vol=0.24)   # Faustregen
-             for i, n in enumerate("E4 G4 A#4 C#5 E5 G5 A#5 C#6 E6".split())}
 
 
 def midi(name):
