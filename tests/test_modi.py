@@ -81,28 +81,25 @@ def test_faustregen_takt_und_ende(app):
     import regen
     assert regen.takt([0, 0.5, 1.0, 1.5], 1.6) == 2.0
     assert regen.takt([0, 0.5, 1.0, 1.5], 3.5) == 0.5
-    assert regen.ziel(25, 1.0) == 1.5 and regen.ziel(1000, 1.0) == regen.MAX
-    app.push(regen.faustregen(app))
-    frames(app, ["ok"])
+    assert regen.ziel(0) == 1.0 and regen.ziel(20) == 1.5 and regen.ziel(1000) == regen.MAX
+    to_title(app)
+    frames(app, ["ok", "left", "ok"])
     sc = app.stack[-1]
-    assert top(app) == "Faustregen" and sc.f0 == 1.0 and sc.hilfe
+    assert top(app) == "Faustregen" and sc.phase == "countdown"
     sc.t0 = time.monotonic() - regen.COUNTDOWN - 0.1
     frames(app, n=1)
     assert sc.phase == "laeuft"
     for k in range(6):
         sc.punch(dict(ok=True, t=sc.start + k, hand="LR"[k % 2], v=2.0, vb=None, am=1, bm=64))
+    sc.t_last = sc.start + 5
     sc.schritt(sc.start + 5.1)
-    assert abs(sc.rate - 1.0) < 0.01 and sc.luft == 1.0
-    sc.start -= 20
-    sc.t_last = sc.start + 20
+    assert abs(sc.rate - 1.0) < 0.01 and sc.luft == 1.0 and abs(sc.ziel - 1.1275) < 1e-6
     sc.schritt(sc.start + 25)
-    assert sc.ziel == 1.5 and sc.luft < 1.0
-    sc.schritt(sc.start + 40)
-    assert sc.phase == "aus"
+    assert sc.ziel == 1.625 and sc.phase == "aus" and sc.luft == 0
     sc.t_aus = time.monotonic() - 2
     frames(app, n=1)
     st = app.stack[-1].st
-    assert top(app) == "Stats" and st["disz"] == "FAUSTREGEN" and st["n"] == 6 and st["ziel"] == 1.5
+    assert top(app) == "Stats" and st["disz"] == "FAUSTREGEN" and st["n"] == 6 and st["ziel"] == 1.62
     frames(app, ["ok", "ok", "ok"])
     e = rangliste(app.scores, "FAUSTREGEN")
-    assert top(app) == "Highscore" and len(e) == 1 and e[0]["ziel"] == 1.5
+    assert top(app) == "Highscore" and len(e) == 1 and e[0]["ziel"] == 1.62

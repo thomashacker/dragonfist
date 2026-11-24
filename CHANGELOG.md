@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.16.0] – 2026-11-24
+
+### Changed
+- FAUSTREGEN startet immer bei 1 Schlag/s ohne Auswahl und wird stetig schneller (+0,025/s pro Sekunde) statt in Stufen.
+- Ton: nur noch der Takt spricht, die Schlag-Töne sind in diesem Modus aus. Jeder Takt-Klick zeigt per Tonhöhe, wie man steht: mittel im Takt, eine Oktave tiefer zu langsam, eine höher zu schnell. Warnsummer bei knapper Luft. Der Blitz ist nur noch zu sehen.
+
 ## [0.15.1] – 2026-11-24
 
 ### Added
