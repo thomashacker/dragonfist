@@ -5,12 +5,26 @@ import pygame
 from netz import symbol
 
 
-W, H = 1024, 600
+QUER, HOCH = (1024, 600), (600, 1024)
+
+
+class L:
+    """Logische Bildfläche; Abstände sind für 600 px Höhe entworfen und wachsen im Hochformat mit."""
+    W, H, hoch = *QUER, False
+
+    @classmethod
+    def y(cls, v):
+        return v * cls.H // 600
+
+
+def ausrichten(hoch):
+    (L.W, L.H), L.hoch = HOCH if hoch else QUER, hoch
 BG, INK, DIM, LO, GREEN = (0, 0, 0), (235, 235, 235), (120, 120, 120), (50, 50, 50), (90, 230, 130)
 ASSETS = Path(__file__).resolve().parent / "assets"
 
 
 SPIEL = ("a", "b", "punkt", "fehl", "verbunden", "getrennt")
+AUSRICHTUNG = {"quer": "QUER", "hoch_l": "HOCH LINKS", "hoch_r": "HOCH RECHTS"}
 
 
 class Scene:
@@ -32,7 +46,7 @@ class Scene:
 
 
 class Tiles(Scene):
-    title, size, cy = "", 280, 340
+    title, size, cy, kopf = "", 280, 340, 104
 
     def __init__(self, app, items):
         super().__init__(app)
@@ -49,14 +63,24 @@ class Tiles(Scene):
             self.app.play("back")
             self.app.pop()
 
-    def draw_tiles(self, s, now):
-        f, n, size = self.app.font, len(self.items), self.size
+    def rects(self):
+        n, size = len(self.items), self.size
+        if L.hoch:
+            top = L.y(self.kopf) + 40
+            frei = L.H - 70 - top
+            h = min(size * 2 // 3, frei * 6 // (7 * n))
+            gap = h // 6
+            y0 = top + (frei - n * h - (n - 1) * gap) // 2
+            return [pygame.Rect(40, y0 + k * (h + gap), L.W - 80, h) for k in range(n)]
         gap = size // 8
-        x0 = (W - n * size - (n - 1) * gap) // 2
-        fits = lambda k, i: all(f.f[k].size(it[i])[0] <= size - 24 for it in self.items)
+        x0 = (L.W - n * size - (n - 1) * gap) // 2
+        return [pygame.Rect(x0 + k * (size + gap), self.cy - size // 2, size, size) for k in range(n)]
+
+    def draw_tiles(self, s, now):
+        f, rects = self.app.font, self.rects()
+        fits = lambda k, i: all(f.f[k].size(it[i])[0] <= rects[0].w - 24 for it in self.items)
         big, small = "l" if fits("l", 0) else "m", "s" if fits("s", 1) else "xs"
-        for k, (label, sub, _) in enumerate(self.items):
-            r = pygame.Rect(x0 + k * (size + gap), self.cy - size // 2, size, size)
+        for k, ((label, sub, _), r) in enumerate(zip(self.items, rects)):
             on = k == self.sel
             if on:
                 r.inflate_ip(16, 16)
@@ -69,13 +93,13 @@ class Tiles(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, self.title, (W // 2, 64), "l", INK, "center")
-        pygame.draw.line(s, LO, (W // 2 - 220, 104), (W // 2 + 220, 104))
+        f.text(s, self.title, (L.W // 2, L.y(64)), "l", INK, "center")
+        pygame.draw.line(s, LO, (L.W // 2 - 220, L.y(104)), (L.W // 2 + 220, L.y(104)))
         self.draw_tiles(s, now)
 
 
 class Title(Tiles):
-    size, cy = 270, 360
+    size, cy, kopf = 270, 360, 166
 
     def __init__(self, app):
         from training import Highscore
@@ -87,10 +111,11 @@ class Title(Tiles):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "DRAGONFIST", (W // 2, 100), "xl", INK, "center")
-        pygame.draw.line(s, LO, (W // 2 - 300, 166), (W // 2 + 300, 166))
+        f.text(s, "DRAGONFIST", (L.W // 2, L.y(100)), "xl", INK, "center")
+        d = min(300, L.W // 2 - 40)
+        pygame.draw.line(s, LO, (L.W // 2 - d, L.y(166)), (L.W // 2 + d, L.y(166)))
         self.draw_tiles(s, now)
-        f.text(s, "v" + self.app.version, (W - 16, H - 44), "xs", DIM, "bottomright")
+        f.text(s, "v" + self.app.version, (L.W - 16, L.H - 44), "xs", DIM, "bottomright")
         n = self.app.netz
         symbol(s, (44, 50), n.online, GREEN, DIM)
         f.text(s, (n.ssid or "WLAN") if n.online else "OFFLINE", (80, 30), "xs", GREEN if n.online else DIM)
@@ -129,6 +154,7 @@ class Settings(Scene):
              lambda d: self.set("volume", min(100, max(0, c["volume"] + 10 * d))), None),
             ("TON", lambda: "AN" if c["ton"] else "AUS", lambda d: self.set("ton", not c["ton"]), None),
             ("MUSIK", lambda: "AN" if c["musik"] else "AUS", lambda d: self.set("musik", not c["musik"]), None),
+            ("AUSRICHTUNG", lambda: AUSRICHTUNG.get(c["ausrichtung"], "QUER"), self.ausrichtung, None),
             ("TESTTON", lambda: "OK drücken", None, lambda: app.sfx.play("treffer")),
             ("ABSTAND A–B", lambda: f"{c['abstand']:g} mm", lambda d: self.abstand(d), None),
             ("KALIBRIERUNG", lambda: "OK drücken", None, lambda: app.push(Calibration(app))),
@@ -149,6 +175,12 @@ class Settings(Scene):
         self.app.apply_audio()
         self.app.save()
         self.app.play("ok")
+
+    def ausrichtung(self, d):
+        arten = list(AUSRICHTUNG)
+        i = arten.index(self.app.cfg["ausrichtung"]) if self.app.cfg["ausrichtung"] in arten else 0
+        self.set("ausrichtung", arten[(i + d) % len(arten)])
+        self.app.ausrichtung()
 
     def abstand(self, d):
         v = min(400, max(50, self.app.cfg["abstand"] + 5 * d))
@@ -171,17 +203,19 @@ class Settings(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "EINSTELLUNGEN", (W // 2, 54), "l", INK, "center")
-        pygame.draw.line(s, LO, (W // 2 - 260, 90), (W // 2 + 260, 90))
-        step = min(58, (H - 150) // len(self.rows))
+        f.text(s, "EINSTELLUNGEN", (L.W // 2, L.y(54)), "l", INK, "center")
+        pygame.draw.line(s, LO, (L.W // 2 - 260, L.y(90)), (L.W // 2 + 260, L.y(90)))
+        y0, bw = L.y(90) + 14, min(800, L.W - 32)
+        step = min(L.y(58), (L.H - y0 - 46) // len(self.rows))
         for k, (label, val, change, _) in enumerate(self.rows):
-            box = pygame.Rect(W // 2 - 400, 104 + k * step, 800, step - 8)
+            box = pygame.Rect((L.W - bw) // 2, y0 + k * step, bw, step - 8)
             on = k == self.sel
             pygame.draw.rect(s, INK, box) if on else pygame.draw.rect(s, LO, box, 1)
             col = BG if on else INK
             f.text(s, label, (box.x + 18, box.centery), "m", col, "midleft")
             v = val()
-            v = v if len(v) <= 24 else v[:23] + "…"
+            n = 24 if not L.hoch else 14
+            v = v if len(v) <= n else v[:n - 1] + "…"
             if change and on:
                 v = f"<  {v}  >"
             f.text(s, v, (box.right - 18, box.centery), "s", col if on else DIM, "midright")
@@ -204,9 +238,9 @@ class Placeholder(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, self.name, (W // 2, 64), "l", INK, "center")
-        f.text(s, "KOMMT BALD", (W // 2, 250), "xl", INK, "center")
-        f.text(s, f"Testschläge  L {self.n['L']}  ·  R {self.n['R']}", (W // 2, 350), "m", DIM, "center")
+        f.text(s, self.name, (L.W // 2, L.y(64)), "l", INK, "center")
+        f.text(s, "KOMMT BALD", (L.W // 2, L.y(250)), "xl", INK, "center")
+        f.text(s, f"Testschläge  L {self.n['L']}  ·  R {self.n['R']}", (L.W // 2, L.y(350)), "m", DIM, "center")
 
 
 class Calibration(Scene):
@@ -215,7 +249,8 @@ class Calibration(Scene):
     def __init__(self, app):
         super().__init__(app)
         from monitor import Ui
-        self.ui = Ui(app.screen)
+        self.buf = pygame.Surface(QUER) if L.hoch else app.screen     # Monitor-Ansicht ist quer, hochkant verkleinert
+        self.ui = Ui(self.buf)
 
     def on(self, a):
         if a == "back":
@@ -226,6 +261,9 @@ class Calibration(Scene):
 
     def draw(self, s, now):
         self.ui.draw(self.app.st, now)
+        if self.buf is not s:
+            h = L.W * QUER[1] // QUER[0]
+            s.blit(pygame.transform.smoothscale(self.buf, (L.W, h)), (0, (L.H - h) // 2))
 
 
 class Intro(Scene):
@@ -240,6 +278,8 @@ class Intro(Scene):
         text = pygame.Surface((a.get_width(), a.get_height() * 2), pygame.SRCALPHA)
         text.blit(a, (0, 0))
         text.blit(b, ((a.get_width() - b.get_width()) // 2, a.get_height()))
+        k = min(1, (L.W - 40) / text.get_width())
+        text = pygame.transform.smoothscale(text, (int(text.get_width() * k), int(text.get_height() * k)))
         self.parts = [text, pygame.transform.smoothscale(logo, (380, 380))]
         self.white = []
         for p in self.parts:
@@ -274,7 +314,7 @@ class Intro(Scene):
         img, wh = self.parts[i], self.white[i]
         size = (int(img.get_width() * z), int(img.get_height() * z))
         r = pygame.Rect((0, 0), size)
-        r.center = (W // 2, H // 2)
+        r.center = (L.W // 2, L.H // 2)
         frame = pygame.transform.smoothscale(img, size)
         frame.set_alpha(int(255 * a * a))
         s.blit(frame, r)

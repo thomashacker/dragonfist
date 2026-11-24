@@ -19,7 +19,7 @@ from runlog import RunLog, schreiben
 from sound import Sfx
 from inputs import Input
 from netz import Netz
-from scenes import W, H, BG, INK, DIM, GREEN, Intro
+from scenes import L, QUER, BG, INK, DIM, GREEN, Intro, ausrichten
 from splash import hold_lock, status
 
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
@@ -29,7 +29,8 @@ MUSIC = ROOT / "app" / "assets" / "music"
 FARBE = dict(a=(255, 90, 0), b=(0, 255, 0), punkt=(0, 80, 255), fehl=(255, 0, 0))
 HALTEN = dict(punkt=0.8, fehl=0.8)
 CFG = dict(audio=None, volume=80, ton=True, musik=True, abstand=200, zeit_limit=30, serie_n=20, reak_runden=10,
-           reak_kombo=1)
+           reak_kombo=1, ausrichtung="hoch_l")
+DREHUNG = {"quer": 0, "hoch_l": 90, "hoch_r": -90}
 
 
 class Fonts:
@@ -38,10 +39,13 @@ class Fonts:
         self.cache = {}
 
     def text(self, s, t, pos, size="s", col=INK, anchor="topleft"):
-        key = (t, size, col)
+        key = (t, size, col, L.W)
         img = self.cache.get(key)
         if img is None:
-            img = self.cache[key] = self.f[size].render(t, True, col)
+            img, w = self.f[size].render(t, True, col), L.W - 24
+            if img.get_width() > w:
+                img = pygame.transform.smoothscale(img, (w, img.get_height() * w // img.get_width()))
+            self.cache[key] = img
         r = img.get_rect(**{anchor: pos})
         s.blit(img, r)
         return r
@@ -51,15 +55,17 @@ class App:
     def __init__(self, a):
         pygame.mixer.pre_init(44100, -16, 1, 256)
         pygame.init()
-        flags = 0 if os.environ.get("SDL_VIDEODRIVER") == "dummy" else             pygame.SCALED | (pygame.FULLSCREEN if a.fullscreen else pygame.RESIZABLE)
-        self.screen = pygame.display.set_mode((W, H), flags)
-        pygame.display.set_caption("DRAGONFIST")
-        pygame.mouse.set_visible(False)
+        dummy = os.environ.get("SDL_VIDEODRIVER") == "dummy"
+        self.flags = 0 if dummy else pygame.SCALED | (pygame.FULLSCREEN if a.fullscreen else pygame.RESIZABLE)
+        self.voll, self.display = a.fullscreen and not dummy, None
         self.cfg = dict(CFG)
         try:
             self.cfg |= json.loads(CFG_FILE.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             pass
+        self.ausrichtung()
+        pygame.display.set_caption("DRAGONFIST")
+        pygame.mouse.set_visible(False)
         if a.abstand:
             self.cfg["abstand"] = a.abstand
         self.font, self.force_mute, self.version, self.scores = Fonts(), a.mute, VERSION, SCORES
@@ -76,9 +82,18 @@ class App:
         self.stack, self.toast, self.sim_s, self.fade, self.track = [], None, 0.0, None, None
         self.toasts, self.led, self.led_sent, self.led_t = {}, {"L": None, "R": None}, None, 0.0
         self.status, self.status_t, self.lock = None, 0.0, None
-        self.black = pygame.Surface((W, H))
-        self.black.fill(BG)
         self.push(Intro(self))
+
+    def ausrichtung(self):
+        """Hochformat: im Vollbild wird die Bildfläche aufs quer eingebaute Panel gedreht, im Fenster steht sie hoch."""
+        art = self.cfg["ausrichtung"] if self.cfg["ausrichtung"] in DREHUNG else "quer"
+        ausrichten(art != "quer")
+        self.drehen = DREHUNG[art] if self.voll else 0
+        if not (self.voll and self.display):
+            self.display = pygame.display.set_mode(QUER if self.voll else (L.W, L.H), self.flags)
+        self.screen = pygame.Surface((L.W, L.H)) if self.drehen else self.display
+        self.black = pygame.Surface((L.W, L.H))
+        self.black.fill(BG)
 
     def sim_edge(self, ch, v):
         self.st.feed(f"E {ch} {v} {int(time.perf_counter() * 1e6) % WRAP}")
@@ -188,7 +203,7 @@ class App:
         if now - self.status_t >= 1:
             self.status, self.status_t = status(), now
         if self.status:
-            r = self.font.text(self.screen, self.status, (W // 2, 14), "s", GREEN, "midtop").inflate(24, 12)
+            r = self.font.text(self.screen, self.status, (L.W // 2, 14), "s", GREEN, "midtop").inflate(24, 12)
             pygame.draw.rect(self.screen, BG, r)
             pygame.draw.rect(self.screen, GREEN, r, 2)
             self.font.text(self.screen, self.status, r.center, "s", GREEN, "center")
@@ -199,6 +214,8 @@ class App:
             else:
                 self.black.set_alpha(int(255 * (1 - k)))
                 self.screen.blit(self.black, (0, 0))
+        if self.drehen:
+            self.display.blit(pygame.transform.rotate(self.screen, self.drehen), (0, 0))
 
     def lights(self, sc, leds, now):
         for k, hand in leds:
@@ -221,15 +238,15 @@ class App:
     def overlay(self, now):
         s, f = self.screen, self.font
         live = self.sim or self.st.live(now)
-        f.text(s, "SIM" if self.sim else ("PICO" if live else "KEIN PICO"), (W - 16, 12), "xs",
+        f.text(s, "SIM" if self.sim else ("PICO" if live else "KEIN PICO"), (L.W - 16, 12), "xs",
                GREEN if live else DIM, "topright")
-        for hand, x in (("L", W * 3 // 10), ("R", W * 7 // 10)):
+        for hand, x in (("L", L.W * 3 // 10), ("R", L.W * 7 // 10)):
             r = self.toasts.get(hand)
             if r and now - r["t"] < 2.5:
                 txt = f"{hand}  {r['v'] * 3.6:.1f} km/h" if r["v"] else f"{hand}  {r['msg']}"
-                f.text(s, txt, (x, H - 64), "m", GREEN if r["ok"] else DIM, "center")
+                f.text(s, txt, (x, L.H - 64), "m", GREEN if r["ok"] else DIM, "center")
         hint = "A/D wählen · OK · ZURÜCK · SIM: ← links · → rechts" if self.sim else "←→ wählen · OK · ZURÜCK"
-        f.text(s, hint, (W // 2, H - 16), "xs", DIM, "center")
+        f.text(s, hint, (L.W // 2, L.H - 16), "xs", DIM, "center")
 
     def run(self, shot=None, script=()):
         clock, self.running, t0 = pygame.time.Clock(), True, time.monotonic()

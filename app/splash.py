@@ -1,4 +1,5 @@
 """Schwarzer Bildschirm mit Status, solange die App nicht läuft (Boot, Update, Neustart)."""
+import json
 import signal
 import sys
 import time
@@ -35,6 +36,14 @@ def app_running():
     return f is None
 
 
+def drehung():
+    try:
+        art = json.loads((Path(__file__).resolve().parent.parent / "settings.json").read_text(encoding="utf-8"))
+        return {"hoch_l": 90, "hoch_r": -90}.get(art.get("ausrichtung"), 0)
+    except (OSError, ValueError):
+        return 0
+
+
 def main():
     import pygame
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "monitor"))
@@ -56,11 +65,13 @@ def main():
             pygame.display.set_caption("DRAGONFIST")
             pygame.mouse.set_visible(False)
         if win:                                              # bleibt hinter der App liegen
-            win.fill((0, 0, 0))
-            for f, t, y, c in ((gross, "DRAGONFIST", 270, (120, 120, 120)),
-                               (klein, status() or "STARTET …", 330, (90, 230, 130))):
+            d = drehung()
+            bild = pygame.Surface((600, 1024) if d else (1024, 600))
+            for f, t, dy, c in ((gross, "DRAGONFIST", -30, (120, 120, 120)),
+                                (klein, status() or "STARTET …", 30, (90, 230, 130))):
                 img = f.render(t, True, c)
-                win.blit(img, img.get_rect(center=(512, y)))
+                bild.blit(img, img.get_rect(center=(bild.get_width() // 2, bild.get_height() // 2 + dy)))
+            win.blit(pygame.transform.rotate(bild, d) if d else bild, (0, 0))
             pygame.display.flip()
         time.sleep(0.25)
 

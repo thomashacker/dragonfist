@@ -6,7 +6,7 @@ import time
 import pygame
 
 from runlog import schreiben
-from scenes import W, H, BG, INK, DIM, LO, GREEN, SPIEL, Scene, Tiles
+from scenes import L, BG, INK, DIM, LO, GREEN, SPIEL, Scene, Tiles
 
 BLAU = (90, 160, 255)
 def _ms(v):
@@ -123,10 +123,24 @@ def _achse(f, s, r, ymax, unten):
     f.text(s, unten, (r.right, r.bottom + 8), "xs", DIM, "topright")
 
 
+def graf_rect():
+    return pygame.Rect(70, L.y(150), L.W - 100, 340) if L.hoch else pygame.Rect(110, 130, 600, 340)
+
+
+def kennzahlen(s, f, items, unter):
+    """Kennzahlen neben der Grafik, hochkant in zwei Spalten darunter: (Titel, Wert, Farbe, Einheit, Schrift)."""
+    schritt = 160 if any(it[4] == "xl" for it in items) else 110
+    for i, (name, wert, col, einheit, gr) in enumerate(items):
+        x, y = (40 + i % 2 * (L.W - 80) // 2, unter + 50 + i // 2 * 120) if L.hoch else (760, 140 + i * schritt)
+        f.text(s, name, (x, y), "s", DIM)
+        r = f.text(s, wert, (x, y + 26), gr, col)
+        einheit and f.text(s, einheit, (r.right + 10, r.y + 20), "xs", DIM)
+
+
 def zaehler(s, f, ok, y, gross=None):
     nl, v = sum(r["hand"] == "L" for r in ok), _mittel([r["v"] * 3.6 for r in ok if r["v"]])
-    f.text(s, gross or str(len(ok)), (W // 2, y), "xl", INK, "center")
-    f.text(s, f"Schläge  ·  links {nl}  ·  rechts {len(ok) - nl}  ·  Ø {v:.1f} km/h", (W // 2, y + 70), "s", DIM,
+    f.text(s, gross or str(len(ok)), (L.W // 2, y), "xl", INK, "center")
+    f.text(s, f"Schläge  ·  links {nl}  ·  rechts {len(ok) - nl}  ·  Ø {v:.1f} km/h", (L.W // 2, y + 70), "s", DIM,
            "center")
 
 
@@ -155,13 +169,13 @@ class Training(Scene):
         if self.t0 is None:
             self.t0 = now
         f = self.app.font
-        f.text(s, "TRAINING", (W // 2, 50), "l", INK, "center")
-        f.text(s, mmss(now - self.t0), (W // 2, 190), "xl", INK, "center")
-        zaehler(s, f, [r for r in self.punches if r["ok"]], 345)
+        f.text(s, "TRAINING", (L.W // 2, L.y(50)), "l", INK, "center")
+        f.text(s, mmss(now - self.t0), (L.W // 2, L.y(190)), "xl", INK, "center")
+        zaehler(s, f, [r for r in self.punches if r["ok"]], L.y(345))
         r = self.last
-        f.text(s, f"{r['v'] * 3.6:.1f} km/h" if r else "–", (W // 2, 495), "m",
+        f.text(s, f"{r['v'] * 3.6:.1f} km/h" if r else "–", (L.W // 2, L.y(495)), "m",
                GREEN if r and now - r["t"] < 2 else DIM, "center")
-        f.text(s, "ZURÜCK  Training beenden", (W // 2, H - 18), "xs", DIM, "center")
+        f.text(s, "ZURÜCK  Training beenden", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
 class Stats(Scene):
@@ -191,41 +205,38 @@ class Stats(Scene):
         k = min(1.0, (u % SEITE_S) / ANIM_S)
         k = 1 - (1 - k) ** 3
         f = self.app.font
-        f.text(s, self.TITEL[i], (W // 2, 46), "l", INK, "center")
+        f.text(s, self.TITEL[i], (L.W // 2, L.y(46)), "l", INK, "center")
         for j in range(len(self.seiten)):
-            pygame.draw.circle(s, INK if j == i else LO, (W // 2 + (j - 2) * 22, 90), 5)
+            pygame.draw.circle(s, INK if j == i else LO, (L.W // 2 + (j - 2) * 22, L.y(90)), 5)
         self.seiten[i](s, f, k)
-        f.text(s, "OK  speichern oder verwerfen", (W // 2, H - 18), "xs", DIM, "center")
+        f.text(s, "OK  speichern oder verwerfen", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
     def zeit(self, s, f, k):
-        f.text(s, mmss(self.st["dauer"] * k), (W // 2, 290), "xl", INK, "center")
-        f.text(s, f"{self.st['n']} Schläge  ·  {self.st['fehl']} Fehlschläge", (W // 2, 400), "m", DIM, "center")
+        f.text(s, mmss(self.st["dauer"] * k), (L.W // 2, L.y(290)), "xl", INK, "center")
+        f.text(s, f"{self.st['n']} Schläge  ·  {self.st['fehl']} Fehlschläge", (L.W // 2, L.y(400)), "m", DIM, "center")
 
     def schlaege(self, s, f, k):
         st = self.st
-        f.text(s, str(round(st["n"] * k)), (W // 2, 250), "xl", INK, "center")
-        f.text(s, "Schläge", (W // 2, 320), "m", DIM, "center")
-        r, links = pygame.Rect(W // 2 - 220, 380, 440, 10), st["nl"] / max(st["n"], 1)
+        f.text(s, str(round(st["n"] * k)), (L.W // 2, L.y(250)), "xl", INK, "center")
+        f.text(s, "Schläge", (L.W // 2, L.y(320)), "m", DIM, "center")
+        r, links = pygame.Rect(L.W // 2 - 220, L.y(380), 440, 10), st["nl"] / max(st["n"], 1)
         pygame.draw.rect(s, LO, r)
         pygame.draw.rect(s, DIM, (r.x, r.y, int(r.w * links * k), r.h))
         f.text(s, f"links {st['nl']}", (r.x, r.bottom + 12), "xs", DIM)
         f.text(s, f"rechts {st['nr']}", (r.right, r.bottom + 12), "xs", DIM, "topright")
-        f.text(s, f"Fehlschläge {st['fehl']}", (W // 2, 480), "s", DIM, "center")
+        f.text(s, f"Fehlschläge {st['fehl']}", (L.W // 2, L.y(480)), "s", DIM, "center")
 
     def takt(self, s, f, k):
-        st, r = self.st, pygame.Rect(110, 130, 600, 340)
+        st, r = self.st, graf_rect()
         ymax = max(st["takt_max"] * 1.15, 0.5)
         _achse(f, s, r, ymax, mmss(st["dauer"]))
         _kurve(s, r, st["takt"], ymax, GREEN, k)
         _strich(s, r, st["takt_avg"], ymax, INK, k)
-        f.text(s, "Ø", (760, 170), "s", DIM)
-        f.text(s, f"{st['takt_avg'] * k:.2f}", (760, 196), "l", INK)
-        f.text(s, "Schläge / s", (760, 250), "s", DIM)
-        f.text(s, "SPITZE", (760, 320), "s", DIM)
-        f.text(s, f"{st['takt_max'] * k:.2f}", (760, 346), "l", GREEN)
+        kennzahlen(s, f, (("Ø", f"{st['takt_avg'] * k:.2f}", INK, "Schläge / s", "l"),
+                     ("SPITZE", f"{st['takt_max'] * k:.2f}", GREEN, "", "l")), r.bottom)
 
     def tempo(self, s, f, k):
-        st, r = self.st, pygame.Rect(110, 130, 600, 340)
+        st, r = self.st, graf_rect()
         ymax = max(st["hin"] + st["zur"] + [10]) * 1.1
         _achse(f, s, r, ymax, f"{st['n']} Schläge")
         for werte, col in ((st["hin"], GREEN), (st["zur"], BLAU)):
@@ -234,14 +245,12 @@ class Stats(Scene):
             _kurve(s, r, _glatt(werte), ymax, col, k)
         _strich(s, r, st["v_avg"], ymax, GREEN, k)
         _strich(s, r, st["vb_avg"], ymax, BLAU, k)
-        for y, name, v, col in ((140, "HIN  Ø", st["v_avg"], GREEN), (250, "ZURÜCK  Ø", st["vb_avg"], BLAU),
-                                (360, "MAX", st["v_max"], INK)):
-            f.text(s, name, (760, y), "s", DIM)
-            f.text(s, f"{v * k:.1f}", (760, y + 26), "l", col)
-            f.text(s, "km/h", (760 + f.f["l"].size(f"{v:.1f}")[0] + 10, y + 46), "xs", DIM)
+        kennzahlen(s, f, [(name, f"{v * k:.1f}", col, "km/h", "l") for name, v, col in
+                     (("HIN  Ø", st["v_avg"], GREEN), ("ZURÜCK  Ø", st["vb_avg"], BLAU), ("MAX", st["v_max"], INK))],
+              r.bottom)
 
     def weg(self, s, f, k):
-        st, r = self.st, pygame.Rect(110, 150, 560, 300)
+        st, r = self.st, graf_rect().inflate(-40, -40)
         pygame.draw.rect(s, LO, r, 1)
         for j in range(0, r.h, 16):
             pygame.draw.line(s, DIM, (r.centerx, r.y + j), (r.centerx, r.y + j + 8), 1)
@@ -257,11 +266,9 @@ class Stats(Scene):
                 if w:
                     xa, xb = _mittel([a for a, _ in w]), _mittel([b for _, b in w])
                     pygame.draw.line(s, GREEN, (r.x + xa * r.w, r.bottom), (r.x + xb * r.w, r.y), 7)
-        f.text(s, "ZUR MITTE", (720, 160), "s", DIM)
-        f.text(s, f"{st['genau'] * k:.0f}%", (720, 186), "xl", INK)
-        f.text(s, "STREUUNG", (720, 320), "s", DIM)
         streu = list(st["streu"].values())
-        f.text(s, f"{_mittel(streu):.1f} %" if streu else "–", (720, 346), "l", GREEN)
+        kennzahlen(s, f, (("ZUR MITTE", f"{st['genau'] * k:.0f}%", INK, "", "xl"),
+                     ("STREUUNG", f"{_mittel(streu):.1f} %" if streu else "–", GREEN, "", "l")), r.bottom + 20)
 
 
 class Wahl(Tiles):
@@ -296,7 +303,7 @@ def namen_wahl(app, st):
 
 
 class NamenWahl(Scene):
-    bare, ZEILEN = True, 7
+    bare = True
 
     def __init__(self, app, st, namen):
         super().__init__(app)
@@ -318,17 +325,20 @@ class NamenWahl(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "WER WAR'S?", (W // 2, 54), "l", INK, "center")
-        von = min(max(0, self.sel - self.ZEILEN // 2), max(0, len(self.items) - self.ZEILEN))
-        for j, name in enumerate(self.items[von:von + self.ZEILEN]):
+        f.text(s, "WER WAR'S?", (L.W // 2, L.y(54)), "l", INK, "center")
+        y0 = L.y(110)
+        n = (L.H - y0 - 60) // 58
+        von = min(max(0, self.sel - n // 2), max(0, len(self.items) - n))
+        for j, name in enumerate(self.items[von:von + n]):
             k = von + j
-            r = pygame.Rect(W // 2 - 260, 110 + j * 58, 520, 50)
+            r = pygame.Rect(L.W // 2 - 260, y0 + j * 58, 520, 50)
             on = k == self.sel
             pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 1)
             f.text(s, name, r.center, "m", BG if on else (DIM if k == 0 else INK), "center")
-        von and f.text(s, "▲", (W // 2 + 300, 135), "s", DIM, "center")
-        von + self.ZEILEN < len(self.items) and f.text(s, "▼", (W // 2 + 300, 110 + 6 * 58 + 25), "s", DIM, "center")
-        f.text(s, "▲▼ wählen  ·  OK speichern  ·  ZURÜCK", (W // 2, H - 18), "xs", DIM, "center")
+        x = min(L.W // 2 + 300, L.W - 14)
+        von and f.text(s, "▲", (x, y0 + 25), "s", DIM, "center")
+        von + n < len(self.items) and f.text(s, "▼", (x, y0 + (n - 1) * 58 + 25), "s", DIM, "center")
+        f.text(s, "▲▼ wählen  ·  OK speichern  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
 class NameEntry(Scene):
@@ -359,17 +369,18 @@ class NameEntry(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "NAME EINGEBEN", (W // 2, 70), "l", INK, "center")
-        x0 = (W - NAME_LEN * 84) // 2
+        f.text(s, "NAME EINGEBEN", (L.W // 2, L.y(70)), "l", INK, "center")
+        step = min(84, (L.W - 40) // NAME_LEN)
+        x0 = (L.W - NAME_LEN * step) // 2
         for i, c in enumerate(self.z):
-            r = pygame.Rect(x0 + i * 84, 230, 72, 96)
+            r = pygame.Rect(x0 + i * step, L.y(230), step - 12, 96)
             on = i == self.pos
             pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 3)
             f.text(s, c if c != " " else "·" if not on else "", r.center, "l", BG if on else INK, "center")
             if on:
                 f.text(s, "▲", (r.centerx, r.y - 26), "s", INK, "center")
                 f.text(s, "▼", (r.centerx, r.bottom + 26), "s", INK, "center")
-        f.text(s, "▲▼ Buchstabe  ·  ◀▶ Stelle  ·  OK speichern  ·  ZURÜCK", (W // 2, H - 18), "xs", DIM, "center")
+        f.text(s, "▲▼ Buchstabe  ·  ◀▶ Stelle  ·  OK speichern  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
 class Highscore(Scene):
@@ -387,26 +398,35 @@ class Highscore(Scene):
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "HIGHSCORE", (W // 2, 46), "l", INK, "center")
-        tw = W // len(DISZIPLINEN)
+        f.text(s, "HIGHSCORE", (L.W // 2, L.y(46)), "l", INK, "center")
+        tw = L.W // len(DISZIPLINEN)
         for i, d in enumerate(DISZIPLINEN):
-            r = pygame.Rect(i * tw + 8, 82, tw - 16, 36)
+            r = pygame.Rect(i * tw + 8, L.y(82), tw - 16, 36)
             on = i == self.sel
             pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 1)
             f.text(s, d, r.center, "xs", BG if on else DIM, "center")
         disz = list(DISZIPLINEN)[self.sel]
         liste, spalten = rangliste(self.app.scores, disz), DISZIPLINEN[disz][0]
         if not liste:
-            return f.text(s, "NOCH KEINE EINTRÄGE", (W // 2, 300), "m", DIM, "center")
-        kopf = (("#", 70, lambda e: ""), ("NAME", 120, lambda e: e["name"])) + spalten +             (("DATUM", 890, lambda e: e["datum"]),)
+            return f.text(s, "NOCH KEINE EINTRÄGE", (L.W // 2, L.y(300)), "m", DIM, "center")
+        if L.hoch:                                                     # schmal: ohne Datum, Werte kleiner
+            kopf = (("#", 20, lambda e: ""), ("NAME", 72, lambda e: e["name"])) + tuple(
+                (name, 240 + j * 90, wert) for j, (name, _, wert) in enumerate(spalten))
+        else:
+            kopf = (("#", 70, lambda e: ""), ("NAME", 120, lambda e: e["name"])) + spalten + (
+                ("DATUM", 890, lambda e: e["datum"]),)
+        klein, y0 = "xs" if L.hoch else "s", L.y(82) + 90
         for name, x, _ in kopf:
-            f.text(s, name, (x, 140), "xs", DIM)
-        zeilen = list(enumerate(liste[:8], 1))
+            f.text(s, name, (x, y0 - 32), "xs", DIM)
+        n = (L.H - y0 - 60) // 44
+        zeilen = list(enumerate(liste[:n], 1))
         rang = next((i for i, e in enumerate(liste, 1) if e["id"] == self.neu), None)
-        if rang and rang > 8:
+        if rang and rang > n:
             zeilen.append((rang, liste[rang - 1]))
         for j, (i, e) in enumerate(zeilen):
-            y = 172 + j * 44
+            y = y0 + j * 44
             col = GREEN if e["id"] == self.neu else INK
-            for name, x, wert in kopf:
-                f.text(s, str(i) if name == "#" else wert(e), (x, y + 18), "m" if x < 400 else "s", col, "midleft")
+            for name, x, wert in kopf[:2]:
+                f.text(s, str(i) if name == "#" else wert(e), (x, y + 18), "m", col, "midleft")
+            for name, x, wert in kopf[2:]:
+                f.text(s, wert(e), (x, y + 18), klein, col, "midleft")
