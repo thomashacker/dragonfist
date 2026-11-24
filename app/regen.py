@@ -35,6 +35,7 @@ class Faustregen(Spiel):
         self.phase, self.t0, self.start, self.t_aus, self.t_last = "countdown", None, None, None, None
         self.ts, self.luft, self.stufe, self.t_stufe, self.tick_t = [], 1.0, 0, -9.0, None
         self.ziel, self.rate, self.ey, self.tropfen, self.regen_s = start, 0.0, None, [], 0.0
+        self.blitz, self.blitz_bis, self.blitz_t = None, 0.0, 0.0
 
     def punch(self, r):
         if self.phase == "laeuft" and r["ok"]:
@@ -110,8 +111,11 @@ class Faustregen(Spiel):
         lo = pygame.Surface((g.w // PIX, g.h // PIX))
         w, h = lo.get_size()
         oben, spiel = h // 2 + 5, h // 2 - 10
+        d = self.abweichung()
+        hell = self.gewitter(now, w, oben, d)
+        hell and lo.fill((18, 18, 18))
         for k in range(5):
-            pygame.draw.ellipse(lo, LO, (w * k // 5 - 2, 1 + 2 * (k % 2), w // 5 + 6, 8))
+            pygame.draw.ellipse(lo, DIM if hell else LO, (w * k // 5 - 2, 1 + 2 * (k % 2), w // 5 + 6, 8))
         self.regen_s += dt * self.ziel * 8
         while self.regen_s >= 1:
             self.regen_s -= 1
@@ -126,17 +130,36 @@ class Faustregen(Spiel):
             lo.set_at((x, y), DIM)
             if (x * 7 + int(now * 6)) % 11 == 0:
                 lo.set_at((x, y + 3 + x % 4 * 3), DIM)
-        d = self.abweichung()
         raus = min(1.0, max(0.0, abs(d) - TOL) / (SPANNE - TOL))        # im Bereich: Ente sitzt auf dem Wasser
-        soll = oben - math.copysign(raus, d) * spiel - len(ENTE) + 3
+        soll = max(20.0, oben - math.copysign(raus, d) * spiel - len(ENTE) + 3)       # oben bleibt Platz für den Blitz
         self.ey = soll if self.ey is None else self.ey + (soll - self.ey) * min(1.0, dt * 5)
         y = round(self.ey + 0.6 * math.sin(now * 4))
         lo.blit(ente(GREEN if abs(d) <= TOL else ROT), (w // 2 - len(ENTE[0]) // 2, y))
         if y > oben:
             for k in range(3):
                 lo.set_at((w // 2 - 7 + 2 * k, y - 2 - int(now * 12 + k * 4) % 10), INK)
+        if hell:
+            pygame.draw.lines(lo, DIM, False, self.blitz, 3)
+            pygame.draw.lines(lo, INK, False, self.blitz)
         s.blit(pygame.transform.scale(lo, (w * PIX, h * PIX)), g.topleft)
         pygame.draw.rect(s, LO, (g.x, g.y, w * PIX, h * PIX), 2)
+
+
+    def gewitter(self, now, w, oben, d):
+        """Blitze aus den Wolken; ist die Ente zu schnell oben, schlagen sie oft und auf sie zu."""
+        if now >= self.blitz_t:
+            hoch = d > TOL
+            self.blitz_t = now + (self.rnd.uniform(0.5, 1.0) if hoch else self.rnd.uniform(2.5, 5.0))
+            x = w // 2 + self.rnd.randint(-3, 3) if hoch else self.rnd.randrange(4, w - 4)
+            ende = round(self.ey) + 4 if hoch and self.ey is not None else self.rnd.randint(oben // 3, oben // 2)
+            self.blitz, y = [(x, 9)], 9
+            while y < ende:
+                y = min(ende, y + self.rnd.randint(2, 4))
+                x += self.rnd.choice((-2, -1, 1, 2))
+                self.blitz.append((x, y))
+            self.blitz_bis = now + 0.12
+            hoch and self.app.play("fehl")
+        return now < self.blitz_bis and len(self.blitz) > 1
 
 
 ENTE = ("....XXX.........",
