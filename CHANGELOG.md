@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.19.0] – 2026-11-25
+
+### Added
+- Pico-Firmware 4: Befehl `W <Periode ms> <rrggbb>` für ein Lauflicht, das der Pico selbst animiert (Phase ganzzahlig, keine Last in der Abtastschleife, Helligkeit wie bisher begrenzt).
+- FAUSTREGEN zeigt den Zieltakt als Lauflicht an der Kiste: wandert pro Takt eine Musterlänge nach oben, grün über Wasser, weiß knapp darunter, rot in Gefahr.
+
 ## [0.18.0] – 2026-11-25
 
 ### Changed

@@ -222,6 +222,9 @@ class App:
             self.led[hand] = (k, now + HALTEN[k] if k in HALTEN else None)
         if sc.leds == "tanz":
             cmd = "T"
+        elif sc.leds == "welle":
+            periode, (r, g, b) = sc.welle()
+            cmd = f"W {periode} {r:02x}{g:02x}{b:02x}"
         else:
             hex6 = []
             for hand in "LR":
@@ -267,7 +270,7 @@ class App:
                 if shot and not script and now - t0 > 1.5:
                     pygame.image.save(self.screen, shot)
                     break
-                clock.tick(60 if self.stack[-1].leds == "spiel" else 30)
+                clock.tick(30 if self.stack[-1].leds == "tanz" else 60)
         finally:
             self.stop.set()
             if hasattr(self, "reader"):
