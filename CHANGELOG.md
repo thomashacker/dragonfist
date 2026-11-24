@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.19.1] – 2026-11-25
+
+### Changed
+- FAUSTREGEN ist vorerst experimentell: raus aus dem Modus-Menü und der Highscore-Liste. Code (`app/regen.py`) und der Lauflicht-Befehl der Pico-Firmware bleiben für später.
+
 ## [0.19.0] – 2026-11-25
 
 ### Added

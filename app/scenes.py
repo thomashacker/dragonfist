@@ -131,13 +131,11 @@ class Modes(Tiles):
     def __init__(self, app):
         from training import Training
         import modi
-        import regen
         super().__init__(app, [
             ("TRAINING", "Endlos", lambda: app.push(Training(app))),
             ("ZEIT", "Zeitlimit", lambda: app.push(modi.zeit(app))),
             ("SCHLÄGE", "Serie", lambda: app.push(modi.serie(app))),
             ("REAKTION", "Piep!", lambda: app.push(modi.reaktion(app))),
-            ("FAUSTREGEN", "Durchhalten", lambda: app.push(regen.Faustregen(app))),
         ])
 
 
