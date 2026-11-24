@@ -28,6 +28,15 @@ def takt(ts, now, start):
 class Faustregen(Spiel):
     sounds = ("verbunden", "getrennt")          # nur der Takt spricht, die Schläge spürt man selbst
 
+    @property
+    def leds(self):
+        return "spiel" if self.phase == "aus" else "welle"
+
+    def welle(self):
+        """Lauflicht an der Kiste: wandert im Zieltakt, Farbe wie die Ente."""
+        farbe = (0, 255, 0) if self.hoehe >= 0 else (255, 255, 255) if self.sicher() else (255, 0, 0)
+        return int(round(1000 / self.ziel, -1)), farbe
+
     def __init__(self, app, rnd=None):
         super().__init__(app)
         self.rnd = rnd or random.Random()

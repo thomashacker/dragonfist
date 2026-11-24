@@ -2,7 +2,7 @@ import sys, time, machine, rp2, select
 from machine import Pin, ADC, mem32
 from ubinascii import hexlify
 
-VERSION = 3
+VERSION = 4
 A = (0, 3, 6, 9, 12, 15)
 B = (28, 27, 22, 21, 14, 18, 17)
 CH = A + B
@@ -80,14 +80,26 @@ def _rad(h):
 
 
 RAD = [wort(_rad(h)) for h in range(96)]
+STUFEN = (1.0, 0.4, 0.12, 0)      # Lauflicht: hell, mittel, schwach, aus – wandert pro Takt eine Länge nach oben
+welle, farbe_w, periode, ph, k_alt, t_w = None, None, 1000, 0, -1, 0      # nur ganze Zahlen: kein Speicher-Müll in der Abtastschleife
 pl = select.poll()
 pl.register(sys.stdin, select.POLLIN)
-modus, zeile, t_cmd, f = "auto", "", 0, 0    # auto: Pico färbt selbst · host: App setzt Farben · tanz: Regenbogen
+modus, zeile, t_cmd, f = "auto", "", 0, 0    # auto: Pico färbt selbst · host: App setzt Farben · tanz: Regenbogen · welle: Lauflicht
 
 
 def befehl(p):
-    global modus
-    if len(p) == 3 and p[0] == "L":
+    global modus, welle, periode, k_alt, farbe_w
+    if len(p) == 3 and p[0] == "W":
+        periode = max(100, int(p[1]))
+        if p[2] != farbe_w:
+            v, farbe_w, k_alt = int(p[2], 16), p[2], -1
+            c = (v >> 16, v >> 8 & 255, v & 255)
+            welle = [[wort(tuple(int(x * STUFEN[(k - i) % 4]) for x in c)) for i in range(N_LED)] for k in range(4)]
+        if modus != "welle":
+            modus, k_alt = "welle", -1
+            for s in LED:
+                s.farbe = None
+    elif len(p) == 3 and p[0] == "L":
         modus = "host"
         for s, x in zip(LED, p[1:]):
             v = int(x, 16)
@@ -143,6 +155,14 @@ while True:
         AKTIV[:] = [s for s in AKTIV if s.i < N_LED]
     n += 1
     now = time.ticks_ms()
+    if modus == "welle":
+        ph = (ph + time.ticks_diff(now, t_w) * 4) % (4 * periode)
+        k = ph // periode
+        if k != k_alt:
+            k_alt = k
+            for s in LED:
+                s.bild(welle[k])
+    t_w = now
     if time.ticks_diff(now, t_s) >= 50:
         t_s = now
         wdt.feed()

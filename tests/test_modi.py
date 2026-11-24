@@ -85,6 +85,7 @@ def test_faustregen_nur_zu_langsam_zaehlt(app):
     frames(app, ["ok", "left", "ok"])
     sc = app.stack[-1]
     assert top(app) == "Faustregen" and sc.phase == "warten"
+    assert "W 1000 00ff00" in app.st.out
     t0 = time.monotonic()
     schlag = lambda t: sc.punch(dict(ok=True, t=t, hand="L", v=2.0, vb=None, am=1, bm=64))
     schlag(t0)
