@@ -81,10 +81,10 @@ def test_faustregen_nur_zu_langsam_zaehlt(app):
     import regen
     assert regen.takt([9.0, 9.5, 10.0], 10.4, 0) == 1.0 and regen.takt([10.0], 10.4, 10.0) == 1.0
     assert regen.ziel(0) == 1.0 and regen.ziel(200) == 6.0
-    to_title(app)
-    frames(app, ["ok", "left", "ok"])
+    app.push(regen.Faustregen(app))
+    frames(app, n=1)
     sc = app.stack[-1]
-    assert top(app) == "Faustregen" and sc.phase == "warten"
+    assert sc.phase == "warten"
     assert "W 1000 00ff00" in app.st.out
     t0 = time.monotonic()
     schlag = lambda t: sc.punch(dict(ok=True, t=t, hand="L", v=2.0, vb=None, am=1, bm=64))

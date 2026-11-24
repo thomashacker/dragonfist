@@ -27,9 +27,6 @@ DISZIPLINEN = {
     "REAKTION": ((("Ø MS", 400, lambda e: _ms(e["r_avg"])), ("BESTE", 520, lambda e: _ms(e["r_best"])),
                   ("KOMBO", 640, lambda e: str(e["kombo"])), ("RUNDEN", 760, lambda e: str(e["ziel"]))),
                  lambda e: (e["r_avg"], e["r_best"])),
-    "FAUSTREGEN": ((("ZEIT", 400, lambda e: mmss(e["dauer"])), ("TAKT", 520, lambda e: f"{e['ziel']:.2f}/s"),
-                    ("SCHLÄGE", 660, lambda e: str(e["n"])), ("Ø KM/H", 780, lambda e: f"{e['v_avg']:.1f}")),
-                   lambda e: (-e["dauer_s"], -e["ziel"])),
 }
 SEITE_S, ANIM_S = 6.5, 2.4
 ALPHA = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
