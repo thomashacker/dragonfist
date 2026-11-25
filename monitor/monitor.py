@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import random
 import threading
@@ -162,17 +163,22 @@ class Ui:
         if mk:
             self.text(f"MARKER {mk}", (24, 8), "s", self.FG if now - mk_t < 2 else self.MID)
 
-        cw, gap = 132, 8
-        for titel, idx, y in (("EBENE B · HINTEN", range(len(A), len(GP)), 30),
-                              ("EBENE A · VORNE", range(len(A)), 204)):
+        w, h = d.get_size()
+        hoch = h > w
+        cw, gap, ch_h, spalten = (134, 8, 132, 4) if hoch else (132, 8, 148, 7)
+        y = 30
+        for titel, idx in (("EBENE B · HINTEN", range(len(A), len(GP))), ("EBENE A · VORNE", range(len(A)))):
             self.text(titel, (24, y), "xs", self.MID)
             for k, i in enumerate(idx):
-                self.cell(pygame.Rect(24 + k * (cw + gap), y + 18, cw, 148), i, ch[i], now)
+                zeile, sp = divmod(k, spalten)
+                self.cell(pygame.Rect(24 + sp * (cw + gap), y + 18 + zeile * (ch_h + gap), cw, ch_h), i, ch[i], now)
+            y += 18 + math.ceil(len(idx) / spalten) * (ch_h + gap) + 8
 
-        y0, hgt = 384, H - 384 - 10
+        y0 = y - 2
+        hgt = 230 if hoch else h - y0 - 10
         self.punch_box(pygame.Rect(24, y0, 200, hgt), last, n, best, armed, now)
 
-        hb = pygame.Rect(232, y0, 400, hgt)
+        hb = pygame.Rect(232, y0, w - 256 if hoch else 400, hgt)
         self.box(hb, self.LO)
         self.text("HEALTH", (hb.x + 12, hb.y + 8), "xs", self.MID)
         erkannt = sum(c.seen0 and not c.dead(now) for c in ch)
@@ -185,15 +191,19 @@ class Ui:
                 ("amp", "STROM", f"~{erkannt * MA_PAIR} mA"),
                 ("scan", "UPTIME", time.strftime("%H:%M:%S", time.gmtime(health["up"])) if health else "–")]
         for k, (ic, lab, val) in enumerate(rows):
-            x, y = hb.x + 12 + (k // 4) * 196, hb.y + 36 + (k % 4) * 38
+            if hoch:
+                x, y, xr = hb.x + 12, hb.y + 30 + k * 24, hb.right - 12
+            else:
+                x, y = hb.x + 12 + (k // 4) * 196, hb.y + 36 + (k % 4) * 38
+                xr = x + 184
             self.icon(ic, x, y + 2)
             self.text(lab, (x + 24, y + 3), "s", self.MID)
-            self.text(val, (x + 184, y), "m", self.FG, "topright")
+            self.text(val, (xr, y), "m", self.FG, "topright")
 
-        lb = pygame.Rect(640, y0, W - 664, hgt)
+        lb = pygame.Rect(24, y0 + hgt + 8, w - 48, h - y0 - hgt - 18) if hoch else pygame.Rect(640, y0, w - 664, hgt)
         self.box(lb, self.LO)
         self.text("EREIGNISSE", (lb.x + 12, lb.y + 8), "xs", self.MID)
-        for k, (t, i, v, dur) in enumerate(log[:9]):
+        for k, (t, i, v, dur) in enumerate(log[:max(0, (lb.h - 36) // 18)]):
             y = lb.y + 30 + k * 18
             col = self.FG if k == 0 else self.MID
             self.text(time.strftime(self.TFMT, time.localtime(t)) + f".{int(t * 100) % 100:02d}", (lb.x + 12, y),
@@ -205,13 +215,13 @@ class Ui:
                           col, "topright")
 
         if not live:
-            ov = pygame.Surface((W, H), pygame.SRCALPHA)
+            ov = pygame.Surface((w, h), pygame.SRCALPHA)
             ov.fill((*self.BG, 190))
             d.blit(ov, (0, 0))
             msg = "PICO VERBUNDEN – KEINE DATEN" if port else "KEIN PICO GEFUNDEN"
             sub = "läuft main.py auf dem Pico?" if port else "USB-Kabel prüfen"
-            self.text(msg, (W // 2, H // 2 - 24), "xl", self.FG, "center")
-            self.text(sub, (W // 2, H // 2 + 20), "s", self.MID, "center")
+            self.text(msg, (w // 2, h // 2 - 24), "xl", self.FG, "center")
+            self.text(sub, (w // 2, h // 2 + 20), "s", self.MID, "center")
 
 
 def main():
