@@ -3,6 +3,14 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.23.0] – 2026-11-25
+
+### Added
+- Präsentationsmodus: gelben Knopf 5 s halten. Musik (`app/assets/music/praesentation.mp3`, nicht im Repo) blendet ein, beim ersten Drop gehen die Lichter an, beim dritten Enthüllung mit Konfetti; das Logo dreht sich als in Blender gerenderte 3D-Münze (`cad/logo_drehung.py` → `app/assets/logo3d.jpg`). Ende mit Ausblenden, jeder Knopf bricht ab.
+
+### Changed
+- Gelber Knopf löst kein OK mehr aus.
+
 ## [0.22.0] – 2026-11-25
 
 ### Added
