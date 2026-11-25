@@ -18,9 +18,12 @@ from punch import WRAP
 from runlog import RunLog, schreiben
 from sound import Sfx
 from inputs import Input, drehung
+from geraete import Geraete
 from netz import Netz
 from praesentation import Praesentation
 from scenes import L, QUER, BG, INK, DIM, GREEN, Intro, ausrichten
+
+ROT = (255, 90, 70)
 from splash import hold_lock, status
 
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
@@ -75,6 +78,7 @@ class App:
         self.netz = Netz()
         rl = None if a.no_log else RunLog(a.runs, *_names(), "app")
         self.st, self.stop, self.sim = State(rl, self.cfg["abstand"]), threading.Event(), a.sim
+        self.geraete = Geraete()
         if a.sim:
             self.st.connect("SIM")
         else:
@@ -256,8 +260,9 @@ class App:
     def overlay(self, now):
         s, f = self.screen, self.font
         live = self.sim or self.st.live(now)
-        f.text(s, "SIM" if self.sim else ("PICO" if live else "KEIN PICO"), (L.W - 16, 12), "xs",
-               GREEN if live else DIM, "topright")
+        fehlt = self.geraete.fehlt(self, now)
+        f.text(s, "SIM" if self.sim else ("FEHLT: " + ", ".join(fehlt) if fehlt else "PICO"), (L.W - 16, 12), "xs",
+               GREEN if live and not fehlt else ROT, "topright")
         for hand, x in (("L", L.W * 3 // 10), ("R", L.W * 7 // 10)):
             r = self.toasts.get(hand)
             if r and now - r["t"] < 2.5:
