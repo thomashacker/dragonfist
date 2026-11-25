@@ -95,15 +95,20 @@ def test_settings_persist(app):
     assert not json.loads(main.CFG_FILE.read_text(encoding="utf-8"))["musik"]
 
 
-def test_wlan_wechsel(app, monkeypatch):
+def _netz_ruhig(app, monkeypatch):
+    """Hintergrund-Prüfung anhalten, damit sie gesetzte Werte nicht überschreibt."""
     import netz
-    n, wahl = app.netz, []
     monkeypatch.setattr(netz.Netz, "_pruefen", lambda self: None)
     for _ in range(60):
-        if n.online is not None:
+        if app.netz.online is not None:
             break
         time.sleep(0.05)
     time.sleep(0.3)
+    return app.netz
+
+
+def test_wlan_wechsel(app, monkeypatch):
+    n, wahl = _netz_ruhig(app, monkeypatch), []
     monkeypatch.setattr(n, "verbinden", wahl.append)
     n.ssid, n.profile, n.meldung = "Zuhause", ["Zuhause", "Handy"], None
     app.push(scenes.Settings(app))
@@ -116,6 +121,35 @@ def test_wlan_wechsel(app, monkeypatch):
     assert st.wlan_text() == "Handy  OK?"
     frames(app, ["ok"])
     assert wahl == ["Handy"]
+    aus = []
+    monkeypatch.setattr(n, "trennen", lambda: aus.append(1))
+    frames(app, ["right"])
+    assert st.wlan_text() == "KEIN WLAN  OK?"
+    frames(app, ["ok"])
+    assert aus == [1]
+    n.ssid, st.netz_wahl = None, None
+    assert st.wlan_text() == "KEIN WLAN"
+    frames(app, ["right"])
+    assert st.wlan_text() == "Zuhause  OK?"
+
+
+def test_update_zeile(app, monkeypatch):
+    n, los = _netz_ruhig(app, monkeypatch), []
+    monkeypatch.setattr(n, "installieren", lambda: los.append(1) or True)
+    app.push(scenes.Settings(app))
+    st = app.stack[-1]
+    assert app.cfg["auto_update"] is False
+    zeile(st, "AUTO-UPDATE")
+    frames(app, ["right"])
+    assert app.cfg["auto_update"] is True
+    zeile(st, "UPDATE")
+    n.update = None
+    frames(app, ["ok"])
+    assert not los and st.update_text().startswith("aktuell")
+    n.update = "9.9.9"
+    assert st.update_text().startswith("v9.9.9")
+    frames(app, ["ok"])
+    assert los == [1] and st.update_text() == "wird installiert …"
 
 
 def test_quit_from_settings(app):

@@ -6,6 +6,8 @@ import time
 
 import pygame
 
+from splash import STATE
+
 PRUEF_S = 10
 WLAN = "802-11-wireless"
 
@@ -18,7 +20,7 @@ class Netz:
     """Prüft im Hintergrund, ob Internet da ist und in welchem WLAN der Jetson hängt; wechselt gespeicherte WLANs."""
 
     def __init__(self):
-        self.online, self.ssid, self.profile, self.meldung = None, None, [], None
+        self.online, self.ssid, self.profile, self.meldung, self.update = None, None, [], None, None
         threading.Thread(target=self._lauf, daemon=True).start()
 
     def _profile(self):
@@ -29,13 +31,26 @@ class Netz:
         return [n.replace(r"\:", ":") for n, typ in (z.rsplit(":", 1) for z in zeilen if ":" in z) if typ == WLAN]
 
     def verbinden(self, name):
-        if self.meldung != "verbinde …":
-            self.meldung = "verbinde …"
-            threading.Thread(target=self._verbinden, args=(name,), daemon=True).start()
+        self._befehl("verbinde …", "con", "up", "id", name)
 
-    def _verbinden(self, name):
+    def trennen(self):
+        """WLAN aus, bis wieder eins gewählt wird (zum Testen ohne Internet)."""
         try:
-            ok = _nmcli("con", "up", "id", name, timeout=45).returncode == 0
+            dev = next(d for d, t in (z.rsplit(":", 1) for z in _nmcli("-t", "-f", "DEVICE,TYPE", "dev").stdout.split())
+                       if t == "wifi")
+        except (OSError, subprocess.SubprocessError, StopIteration, ValueError):
+            self.meldung = "fehlgeschlagen"
+            return
+        self._befehl("trenne …", "dev", "disconnect", dev)
+
+    def _befehl(self, meldung, *args):
+        if self.meldung not in ("verbinde …", "trenne …"):
+            self.meldung = meldung
+            threading.Thread(target=self._ausfuehren, args=args, daemon=True).start()
+
+    def _ausfuehren(self, *args):
+        try:
+            ok = _nmcli(*args, timeout=45).returncode == 0
         except (OSError, subprocess.SubprocessError):
             ok = False
         self.meldung = None if ok else "fehlgeschlagen"
@@ -53,6 +68,20 @@ class Netz:
         except (OSError, subprocess.SubprocessError):
             self.ssid = None
         self.profile = self._profile()
+        try:
+            self.update = (STATE / "verfuegbar").read_text(encoding="utf-8").strip() or None
+        except OSError:
+            self.update = None
+
+    def installieren(self):
+        """Update sofort holen, auch wenn Auto-Update aus ist; der Update-Dienst startet die App danach neu."""
+        try:
+            STATE.mkdir(parents=True, exist_ok=True)
+            (STATE / "jetzt").touch()
+            subprocess.Popen(["systemctl", "--user", "start", "--no-block", "dragonfist-update.service"])
+            return True
+        except OSError:
+            return False
 
     def _lauf(self):
         while True:

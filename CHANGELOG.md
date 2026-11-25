@@ -3,6 +3,18 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [1.0.0] – 2026-11-25
+
+Erste Version für den Einsatz.
+
+### Added
+- EINSTELLUNGEN > AUTO-UPDATE (Standard AUS) und UPDATE: zeigt eine neue Version an und installiert sie auf OK.
+- EINSTELLUNGEN > WLAN: KEIN WLAN trennt das WLAN, um ohne Internet zu testen.
+
+### Fixed
+- Kaputte `highscores.json` wird beiseitegelegt statt beim nächsten Speichern überschrieben.
+- Highscore-Liste liest die Datei nur noch bei Änderungen statt in jedem Bild.
+
 ## [0.24.0] – 2026-11-25
 
 ### Added

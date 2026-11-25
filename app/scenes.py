@@ -24,6 +24,7 @@ ASSETS = Path(__file__).resolve().parent / "assets"
 
 
 SPIEL = ("a", "b", "punkt", "fehl", "verbunden", "getrennt")
+KEIN_WLAN = "KEIN WLAN"
 AUSRICHTUNG = {"quer": "QUER", "hoch_l": "HOCH LINKS", "hoch_r": "HOCH RECHTS"}
 
 
@@ -147,7 +148,7 @@ def _aufnahme(app):
 class Settings(Scene):
     def __init__(self, app):
         super().__init__(app)
-        self.sel, self.devs, self.netz_wahl = 0, app.audio_devices(), None
+        self.sel, self.devs, self.netz_wahl, self.installiert = 0, app.audio_devices(), None, False
         c = app.cfg
         self.rows = [
             ("AUDIO-AUSGANG", lambda: c["audio"] or "Standard", self.audio, None),
@@ -157,6 +158,9 @@ class Settings(Scene):
             ("MUSIK", lambda: "AN" if c["musik"] else "AUS", lambda d: self.set("musik", not c["musik"]), None),
             ("AUSRICHTUNG", lambda: AUSRICHTUNG.get(c["ausrichtung"], "QUER"), self.ausrichtung, None),
             ("WLAN", self.wlan_text, self.wlan, self.wlan_los),
+            ("AUTO-UPDATE", lambda: "AN" if c["auto_update"] else "AUS",
+             lambda d: self.set("auto_update", not c["auto_update"]), None),
+            ("UPDATE", self.update_text, None, self.update_los),
             ("TESTTON", lambda: "OK drücken", None, lambda: app.sfx.play("treffer")),
             ("ABSTAND A–B", lambda: f"{c['abstand']:g} mm", lambda d: self.abstand(d), None),
             ("KALIBRIERUNG", lambda: "OK drücken", None, lambda: app.push(Calibration(app))),
@@ -186,24 +190,39 @@ class Settings(Scene):
 
     def wlan(self, d):
         n = self.app.netz
-        if n.profile:
-            cur = self.netz_wahl or n.ssid
-            i = n.profile.index(cur) if cur in n.profile else -1 if d > 0 else 0
-            self.netz_wahl, n.meldung = n.profile[(i + d) % len(n.profile)], None
+        wahl = n.profile + [KEIN_WLAN]
+        cur = self.netz_wahl or n.ssid or KEIN_WLAN
+        i = wahl.index(cur) if cur in wahl else -1 if d > 0 else 0
+        self.netz_wahl, n.meldung = wahl[(i + d) % len(wahl)], None
+
+    def _anders(self):
+        return self.netz_wahl and self.netz_wahl != (self.app.netz.ssid or KEIN_WLAN)
 
     def wlan_los(self):
-        n = self.app.netz
-        if self.netz_wahl and self.netz_wahl != n.ssid:
-            n.verbinden(self.netz_wahl)
+        if self._anders():
+            n = self.app.netz
+            n.trennen() if self.netz_wahl == KEIN_WLAN else n.verbinden(self.netz_wahl)
             self.app.play("ok")
 
     def wlan_text(self):
         n = self.app.netz
         if n.meldung:
             return n.meldung
-        if self.netz_wahl and self.netz_wahl != n.ssid:
+        if self._anders():
             return f"{self.netz_wahl}  OK?"
-        return n.ssid or "kein WLAN"
+        return n.ssid or KEIN_WLAN
+
+    def update_text(self):
+        neu = self.app.netz.update
+        if self.installiert:
+            return "wird installiert …"
+        return f"v{neu} – OK installieren" if neu and neu != self.app.version else f"aktuell v{self.app.version}"
+
+    def update_los(self):
+        n = self.app.netz
+        if n.update and n.update != self.app.version and not self.installiert:
+            self.installiert = n.installieren()
+            self.app.play("ok")
 
     def abstand(self, d):
         v = min(400, max(50, self.app.cfg["abstand"] + 5 * d))
