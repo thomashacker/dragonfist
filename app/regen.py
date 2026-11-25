@@ -6,7 +6,7 @@ import pygame
 
 from modi import ROT, Spiel, _zeit
 from scenes import L, BG, INK, DIM, LO, GREEN
-from training import DISZIPLINEN, Stats, auswerten, mmss
+from training import DISZIPLINEN, Stats, auswerten, kmh, mmss
 
 START, ANSTIEG = 1.0, 0.025                # Schläge/s, +0,25 alle 10 s, ohne Obergrenze
 HUB, BAND = 0.15, 0.4                      # Höhe pro Schlag (-1 … 1), unter -BAND geht die Luft aus
@@ -16,7 +16,7 @@ PIX = 6                                    # Kantenlänge eines Szenen-Pixels
 DISZIPLINEN.setdefault("FAUSTREGEN", ((("ZEIT", 400, lambda e: mmss(e["dauer"])),
                                        ("TAKT", 520, lambda e: f"{e['ziel']:.2f}/s"),
                                        ("SCHLÄGE", 660, lambda e: str(e["n"])),
-                                       ("Ø KM/H", 780, lambda e: f"{e['v_avg']:.1f}")),
+                                       ("Ø KM/H", 780, kmh)),
                                       lambda e: (-e["dauer_s"], -e["ziel"])))
 
 

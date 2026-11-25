@@ -8,19 +8,24 @@ BREITE = 2                      # so viele nebeneinanderliegende A-Strahlen deck
 ZUCKEN_S = 0.08                 # nur A, kürzer als das: kein Fehlschlag, sondern Arm im Vorbeiwischen
 NACH_US = 40_000                # B so lange frei, dann zählt ein neuer B-Stoß bei Arm in A als neuer Schlag
 NACH_MIN_DT_US = 20_000         # kürzer (> 36 km/h) ist beim Nachschlag kein Messwert: Schlag zählt ohne Tempo
-RUTSCH_US = 6_000               # Nachbarstrahl in A so kurz vorher frei geworden: Arm rutscht seitlich, kein Schlagbeginn
+RUTSCH_US = 60_000               # Nachbarstrahl in A so kurz vorher frei geworden: Arm rutscht seitlich, kein Schlagbeginn
 V_MAX = 40 / 3.6                # schneller ist keine Faust auf 20 cm: Schlag zählt ohne Tempo
+# Tempo nur bei freier Bahn: steckt beim Eintritt ein fremder Arm im selben oder Nachbarstrahl von A, oder liegt bis
+# zum B-Bruch etwas Fremdes in B, sieht die Logik den Eintritt oft zu spät (Lauf 25.11.: 12 % statt 1 % über 40 km/h).
+# Solche Schläge zählen ohne Tempo.
+FREI_ABSTAND = 2
 
 
 class Faust:
     """Ein zusammenhängender Körper im Fenster: A brechen -> B brechen -> beide Ebenen wieder frei = Schlag."""
-    __slots__ = ("hand", "ph", "a", "b", "m", "ta", "tb", "tbr", "tar", "ach", "bch", "clear", "t0", "tan", "arm", "tbs")
+    __slots__ = ("hand", "ph", "a", "b", "m", "ta", "tb", "tbr", "tar", "ach", "bch", "clear", "t0", "tan", "arm", "tbs", "allein")
 
     def __init__(self, hand, ph, i, tus, now):
         self.hand, self.ph, self.a, self.b, self.m, self.t0, self.arm = hand, ph, 0, 0, 0, now, False
         self.ta = self.tan = tus if ph == "A" else None
         self.tb = self.tbr = self.tar = self.clear = None
         self.tbs = now if ph == "B" else None
+        self.allein = False
         self.ach, self.bch = (i, None) if ph == "A" else (None, i)
 
     def vorwaerts(self):
@@ -59,6 +64,7 @@ class Punch:
         else:
             hand = min("LR", key=lambda h: abs(self.hx[h] - x))
         f = Faust(hand, ph, i, tus, now)
+        f.allein = self._freie_bahn(i, 1 << i)
         if ph == "A" and any(0 <= j < self.n_a and self.frei[j] is not None
                              and (tus - self.frei[j]) % WRAP < RUTSCH_US for j in (i - 1, i + 1)):
             f.ta = None
@@ -66,6 +72,10 @@ class Punch:
         self.faeuste.append(f)
         ph == "A" and self.events.append(("a", hand))
         return f
+
+    def _freie_bahn(self, i, eigen):
+        fremd = self.low & ~eigen
+        return not fremd & ~self.amask and all(abs(i - j) >= FREI_ABSTAND for j in range(self.n_a) if fremd >> j & 1)
 
     def _besitzer_a(self, i):
         bit = 1 << i
@@ -112,6 +122,7 @@ class Punch:
             if f.ph == "AB" and not f.b and f.tbr is not None and (tus - f.tbr) % WRAP >= NACH_US:
                 f = self._nachschlag(f, i, tus, now)
             if f.ph == "A":
+                f.allein = f.allein and self._freie_bahn(f.ach, f.m | bit)
                 f.ph, f.tb, f.bch, f.tbs = "AB", tus, i, now
                 self.events.append(("b", f.hand))
             f.b |= bit
@@ -165,10 +176,10 @@ class Punch:
                 r.update(ok=True, n=self.n, msg="TREFFER")
                 h = self.hx[f.hand] + LERN * (self.x(f) - self.hx[f.hand])
                 self.hx[f.hand] = min(h, 0.45) if f.hand == "L" else max(h, 0.55)
-                if dt and self.dist * 1e6 / dt <= V_MAX:
+                if dt and f.allein and self.dist * 1e6 / dt <= V_MAX:
                     r["v"] = self.dist * 1e6 / dt
                     self.best = max(self.best, r["v"])
-                if f.tbr is not None and f.tar is not None:
+                if r["v"] and f.tbr is not None and f.tar is not None:
                     db = (f.tar - f.tbr) % WRAP
                     if MIN_DT_US <= db <= MAX_DT_US and self.dist * 1e6 / db <= V_MAX:
                         r["vb"] = self.dist * 1e6 / db

@@ -217,7 +217,7 @@ def test_aufnahmen_compares_truth(tmp_path):
         [f"{t1 + 0.1:.4f} # AUFNAHME ENDE erkannt=100 L=50 R=50 fehl=0 gezaehlt=110"]), encoding="utf-8")
     (r,) = aufnahmen.aufnahmen(tmp_path / "lauf", Punch)
     assert r["person"] == "2" and r["art"] == "SCHNELL" and r["gezaehlt"] == 110 and r["live"] == 100
-    assert 104 <= r["jetzt"] <= 112 and 0.5 < r["tempo"] <= 1 and r["vmax"] <= 40
+    assert 104 <= r["jetzt"] <= 112 and 0.25 < r["tempo"] <= 1 and r["vmax"] <= 40
 
 
 @pytest.mark.parametrize("lauf", ["schnell", "training2", "training3"])
@@ -229,3 +229,42 @@ def test_hands_stay_on_their_side(lauf):
     for h, seite in (("L", lambda v: v < 0.5), ("R", lambda v: v > 0.5)):
         rs = [x(r) for r in ok if r["hand"] == h and r["am"]]
         assert sum(map(seite, rs)) / len(rs) > 0.85
+
+
+def test_kein_tempo_wenn_fremder_arm_neben_eintritt():
+    p = Punch(6, 13, 200)
+    for ch, v, tus, t in ((1, 0, 0, 0.0), (2, 0, 1_000, 0.001), (B1 + 1, 0, 30_000, 0.03), (3, 0, 100_000, 0.1),
+                          (B1 + 4, 0, 115_000, 0.115), (B1 + 1, 1, 150_000, 0.15), (1, 1, 160_000, 0.16),
+                          (2, 1, 160_000, 0.16), (B1 + 4, 1, 200_000, 0.2), (3, 1, 220_000, 0.22)):
+        p.edge(ch, v, tus, t)
+    r = [x for x in p.tick(0.4) if x["ok"]]
+    assert len(r) == 2 and r[0]["v"] == pytest.approx(0.2 / 0.03) and r[1]["v"] is None
+
+
+def test_kein_tempo_wenn_faust_vom_nachbarstrahl_rutscht():
+    p = Punch(6, 13, 200)
+    for ch, v, tus, t in ((2, 0, 0, 0.0), (2, 1, 20_000, 0.02), (3, 0, 60_000, 0.06), (B1 + 3, 0, 75_000, 0.075),
+                          (B1 + 3, 1, 140_000, 0.14), (3, 1, 200_000, 0.2)):
+        p.edge(ch, v, tus, t)
+    r = [x for x in p.tick(0.4) if x["ok"]]
+    assert len(r) == 1 and r[0]["v"] is None
+
+
+def test_nachschlag_zaehlt_ohne_tempo():
+    p = Punch(6, 13, 200)
+    for ch, v, tus, t in ((1, 0, 0, 0.0), (7, 0, 50_000, 0.05), (7, 1, 120_000, 0.12), (2, 0, 200_000, 0.2),
+                          (7, 0, 260_000, 0.26), (7, 1, 330_000, 0.33), (1, 1, 400_000, 0.4), (2, 1, 400_000, 0.4)):
+        p.edge(ch, v, tus, t)
+        p.tick(t)
+    r = [x for x in p.tick(0.6) if x["ok"]]
+    assert p.n == 2 and r[0]["v"] == pytest.approx(4.0) and r[1]["v"] is None
+
+
+def test_replay_praesentation_nur_echte_tempi():
+    """Lauf 25.11., 2 min Dauerfeuer mit vielen Leuten: vorher 7 % über 40 km/h, jetzt nur plausible Werte."""
+    import analyse
+    ev, st, _ = analyse.laden(Path(__file__).parent / "data" / "praesentation")
+    ok = [r for r in analyse.abspielen(ev, st, Punch) if r["ok"]]
+    v = sorted(r["v"] * 3.6 for r in ok if r["v"])
+    assert len(ok) > 500 and len(v) > 50
+    assert v[-1] <= 40 and sum(x > 30 for x in v) / len(v) < 0.03 and 6 < v[len(v) // 2] < 16

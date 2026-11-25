@@ -147,6 +147,7 @@ class Modes(Tiles):
             ("ZEIT", "Zeitlimit", lambda: app.push(modi.zeit(app))),
             ("SCHLÄGE", "Serie", lambda: app.push(modi.serie(app))),
             ("REAKTION", "Piep!", lambda: app.push(modi.reaktion(app))),
+            ("PUNKTE", "Durchhalten", lambda: app.push(modi.Punkte(app))),
         ])
 
 
@@ -166,6 +167,8 @@ class Settings(Scene):
              lambda d: self.set("volume", min(100, max(0, c["volume"] + 10 * d))), None),
             ("TON", lambda: "AN" if c["ton"] else "AUS", lambda d: self.set("ton", not c["ton"]), None),
             ("MUSIK", lambda: "AN" if c["musik"] else "AUS", lambda d: self.set("musik", not c["musik"]), None),
+            ("LICHT", lambda: f"{c['licht']} %",
+             lambda d: self.set("licht", min(100, max(10, c["licht"] + 10 * d))), None),
             ("AUSRICHTUNG", lambda: AUSRICHTUNG.get(c["ausrichtung"], "QUER"), self.ausrichtung, None),
             ("WLAN", self.wlan_text, self.wlan, self.wlan_los),
             ("AUTO-UPDATE", lambda: "AN" if c["auto_update"] else "AUS",
