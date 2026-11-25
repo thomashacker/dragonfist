@@ -95,6 +95,29 @@ def test_settings_persist(app):
     assert not json.loads(main.CFG_FILE.read_text(encoding="utf-8"))["musik"]
 
 
+def test_wlan_wechsel(app, monkeypatch):
+    import netz
+    n, wahl = app.netz, []
+    monkeypatch.setattr(netz.Netz, "_pruefen", lambda self: None)
+    for _ in range(60):
+        if n.online is not None:
+            break
+        time.sleep(0.05)
+    time.sleep(0.3)
+    monkeypatch.setattr(n, "verbinden", wahl.append)
+    n.ssid, n.profile, n.meldung = "Zuhause", ["Zuhause", "Handy"], None
+    app.push(scenes.Settings(app))
+    st = app.stack[-1]
+    zeile(st, "WLAN")
+    assert st.wlan_text() == "Zuhause"
+    frames(app, ["ok"])
+    assert not wahl
+    frames(app, ["right"])
+    assert st.wlan_text() == "Handy  OK?"
+    frames(app, ["ok"])
+    assert wahl == ["Handy"]
+
+
 def test_quit_from_settings(app):
     to_title(app)
     app.push(scenes.Settings(app))

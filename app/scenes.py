@@ -147,7 +147,7 @@ def _aufnahme(app):
 class Settings(Scene):
     def __init__(self, app):
         super().__init__(app)
-        self.sel, self.devs = 0, app.audio_devices()
+        self.sel, self.devs, self.netz_wahl = 0, app.audio_devices(), None
         c = app.cfg
         self.rows = [
             ("AUDIO-AUSGANG", lambda: c["audio"] or "Standard", self.audio, None),
@@ -156,6 +156,7 @@ class Settings(Scene):
             ("TON", lambda: "AN" if c["ton"] else "AUS", lambda d: self.set("ton", not c["ton"]), None),
             ("MUSIK", lambda: "AN" if c["musik"] else "AUS", lambda d: self.set("musik", not c["musik"]), None),
             ("AUSRICHTUNG", lambda: AUSRICHTUNG.get(c["ausrichtung"], "QUER"), self.ausrichtung, None),
+            ("WLAN", self.wlan_text, self.wlan, self.wlan_los),
             ("TESTTON", lambda: "OK drücken", None, lambda: app.sfx.play("treffer")),
             ("ABSTAND A–B", lambda: f"{c['abstand']:g} mm", lambda d: self.abstand(d), None),
             ("KALIBRIERUNG", lambda: "OK drücken", None, lambda: app.push(Calibration(app))),
@@ -182,6 +183,27 @@ class Settings(Scene):
         i = arten.index(self.app.cfg["ausrichtung"]) if self.app.cfg["ausrichtung"] in arten else 0
         self.set("ausrichtung", arten[(i + d) % len(arten)])
         self.app.ausrichtung()
+
+    def wlan(self, d):
+        n = self.app.netz
+        if n.profile:
+            cur = self.netz_wahl or n.ssid
+            i = n.profile.index(cur) if cur in n.profile else -1 if d > 0 else 0
+            self.netz_wahl, n.meldung = n.profile[(i + d) % len(n.profile)], None
+
+    def wlan_los(self):
+        n = self.app.netz
+        if self.netz_wahl and self.netz_wahl != n.ssid:
+            n.verbinden(self.netz_wahl)
+            self.app.play("ok")
+
+    def wlan_text(self):
+        n = self.app.netz
+        if n.meldung:
+            return n.meldung
+        if self.netz_wahl and self.netz_wahl != n.ssid:
+            return f"{self.netz_wahl}  OK?"
+        return n.ssid or "kein WLAN"
 
     def abstand(self, d):
         v = min(400, max(50, self.app.cfg["abstand"] + 5 * d))
