@@ -117,3 +117,24 @@ def test_known_names_are_offered(app):
     app.push(Wahl(app, base))
     frames(app, ["ok", "up", "ok"])
     assert top(app) == "NameEntry"
+
+
+def test_highscore_blaettern_und_neueste(app):
+    import training
+    for k in range(30):
+        training.eintragen(app.scores, "ZEIT", dict(id=1000 + k, name=f"K{k}", datum="25.11.25", n=k, ziel=30,
+                                                    takt_avg=k / 10, v_avg=5.0))
+    app.push(training.Highscore(app, "ZEIT"))
+    hs = app.stack[-1]
+    frames(app, n=1)
+    assert hs.liste()[0][1]["name"] == "K29" and hs.oben == 0 and hs.n < 30
+    frames(app, ["down"] * 40)
+    assert hs.oben == 30 - hs.n
+    frames(app, ["ok"])
+    assert hs.neueste and hs.oben == 0 and hs.liste()[0] == (1, hs.liste()[0][1])
+    frames(app, ["down", "gelb"])
+    assert not hs.neueste
+    app.push(training.Highscore(app, "ZEIT", neu=1000))
+    frames(app, n=1)
+    hs = app.stack[-1]
+    assert hs.oben + hs.n >= 30 and top(app) == "Highscore"

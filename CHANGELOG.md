@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.24.0] – 2026-11-25
+
+### Added
+- Highscore: ▲▼ blättert durch lange Listen, OK/Gelb schaltet zwischen BESTE und NEUESTE (Rang bleibt sichtbar, quer mit Uhrzeit). Nach dem Speichern springt die Liste zum neuen Eintrag.
+
 ## [0.23.0] – 2026-11-25
 
 ### Added
