@@ -219,3 +219,57 @@ def test_hochformat_umschalten_und_drehen(app):
     app.ausrichtung()
     frames(app, n=1)
     assert app.drehen == 90 and app.screen.get_size() == scenes.HOCH and app.display.get_size() == scenes.QUER
+
+
+def maus(app, *punkte, dt=0.0):
+    ev = [pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=punkte[0])]
+    app.input.events(ev)
+    time.sleep(dt)
+    return app.input.events([pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=punkte[-1])])
+
+
+def test_touch_tippen_wischen_halten(app):
+    to_title(app)
+    t = app.stack[-1]
+    frames(app, n=1)
+    r = t.ziele[-1][1]
+    assert maus(app, r.center) == [("tap", r.center)]
+    assert maus(app, (100, 100), (300, 110)) == ["right"]
+    assert maus(app, (100, 300), (110, 100)) == ["up"]
+    app.input.events([pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(50, 50))])
+    time.sleep(0.85)
+    assert app.input.events([]) == ["back"]
+    assert app.input.events([pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(50, 50))]) == []
+    frames(app, [("tap", t.ziele[0][1].center)])
+    assert top(app) == "Modes"
+
+
+def test_touch_leerer_fleck_und_einstellungen(app):
+    to_title(app)
+    frames(app, [("tap", (1, 1))])
+    assert top(app) == "Title"
+    st = scenes.Settings(app)
+    app.push(st)
+    frames(app, n=1)
+    zeile(st, "ABSTAND A–B")
+    k, box = next(z for z in st.ziele if z[0] == st.sel)
+    v = app.cfg["abstand"]
+    frames(app, [("tap", (box.right - 5, box.centery))])
+    assert app.cfg["abstand"] == v + 5
+    frames(app, [("tap", (box.x + 5, box.centery))])
+    assert app.cfg["abstand"] == v
+    andere = next(z for z in st.ziele if z[0] != st.sel)
+    frames(app, [("tap", andere[1].center)])
+    assert st.sel == andere[0] and app.cfg["abstand"] == v
+
+
+def test_touch_drehung():
+    from inputs import drehung
+    w, h = 600, 1024
+    bild = pygame.Surface((w, h))
+    bild.set_at((10, 20), (255, 0, 0))
+    for d in (90, -90, 0):
+        g = pygame.transform.rotate(bild, d)
+        rot = next((x, y) for x in range(g.get_width()) for y in range(g.get_height())
+                   if g.get_at((x, y))[:3] == (255, 0, 0))
+        assert drehung(d, w, h)(rot) == (10, 20)

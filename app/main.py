@@ -17,7 +17,7 @@ from pico import State, reader
 from punch import WRAP
 from runlog import RunLog, schreiben
 from sound import Sfx
-from inputs import Input
+from inputs import Input, drehung
 from netz import Netz
 from praesentation import Praesentation
 from scenes import L, QUER, BG, INK, DIM, GREEN, Intro, ausrichten
@@ -64,6 +64,7 @@ class App:
             self.cfg |= json.loads(CFG_FILE.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             pass
+        self.input = Input(self.sim_edge if a.sim else None, self.sim_punch if a.sim else None)
         self.ausrichtung()
         pygame.display.set_caption("DRAGONFIST")
         pygame.mouse.set_visible(False)
@@ -74,7 +75,6 @@ class App:
         self.netz = Netz()
         rl = None if a.no_log else RunLog(a.runs, *_names(), "app")
         self.st, self.stop, self.sim = State(rl, self.cfg["abstand"]), threading.Event(), a.sim
-        self.input = Input(self.sim_edge if a.sim else None, self.sim_punch if a.sim else None)
         if a.sim:
             self.st.connect("SIM")
         else:
@@ -93,6 +93,7 @@ class App:
         if not (self.voll and self.display):
             self.display = pygame.display.set_mode(QUER if self.voll else (L.W, L.H), self.flags)
         self.screen = pygame.Surface((L.W, L.H)) if self.drehen else self.display
+        self.input.wandeln = drehung(self.drehen, L.W, L.H)
         self.black = pygame.Surface((L.W, L.H))
         self.black.fill(BG)
 
@@ -179,7 +180,9 @@ class App:
     def frame(self, actions, now):
         sc = self.stack[-1]
         for act in actions:
-            if act == "praesentation":
+            if isinstance(act, tuple):
+                sc.tap(act[1])
+            elif act == "praesentation":
                 if not isinstance(sc, Praesentation):
                     self.push(Praesentation(self))
             else:

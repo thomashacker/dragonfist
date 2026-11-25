@@ -339,9 +339,11 @@ class NamenWahl(Scene):
         y0 = L.y(110)
         n = (L.H - y0 - 60) // 58
         von = min(max(0, self.sel - n // 2), max(0, len(self.items) - n))
+        self.ziele = []
         for j, name in enumerate(self.items[von:von + n]):
             k = von + j
             r = pygame.Rect(L.W // 2 - 260, y0 + j * 58, 520, 50)
+            self.ziele.append((k, r))
             on = k == self.sel
             pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 1)
             f.text(s, name, r.center, "m", BG if on else (DIM if k == 0 else INK), "center")

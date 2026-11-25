@@ -9,13 +9,24 @@ SIM = {pygame.K_q: 0, pygame.K_w: 6, pygame.K_o: 5, pygame.K_p: 12}
 PAD_BUTTONS = {0: "ok", 1: "back", 3: "back"}
 GELB, HALTEN_S = 2, 5.0          # gelber Knopf: kurz "gelb", 5 s gehalten startet die Präsentation
 DEAD, DELAY, REPEAT = 0.6, 0.35, 0.12
+WISCH, LANG = 60, 0.8       # Touch: ab 60 px Wischen, ab 0,8 s Halten zurück
+
+
+def drehung(d, w, h):
+    """Bildschirmpunkt des gedrehten Panels → Punkt der logischen Bildfläche (w × h)."""
+    if d == 90:
+        return lambda p: (w - 1 - p[1], p[0])
+    if d == -90:
+        return lambda p: (p[1], h - 1 - p[0])
+    return lambda p: p
 
 
 class Input:
     def __init__(self, sim_feed=None, sim_punch=None):
         pygame.joystick.init()
         self.pads, self.sim, self.sim_punch, self.held = {}, sim_feed, sim_punch, set()
-        self.dir, self.next, self.gelb = None, 0.0, None
+        self.dir, self.next, self.gelb, self.druck = None, 0.0, None, None
+        self.wandeln = lambda p: p
 
     def held_ch(self):
         return [SIM[k] for k in self.held]
@@ -50,6 +61,16 @@ class Input:
             elif t == pygame.KEYUP and e.key in self.held:
                 self.held.discard(e.key)
                 self.sim(SIM[e.key], 1)
+            elif t == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                self.druck = self.wandeln(e.pos), time.monotonic()
+            elif t == pygame.MOUSEBUTTONUP and e.button == 1 and self.druck:
+                (x0, y0), _ = self.druck
+                x, y = self.wandeln(e.pos)
+                dx, dy, self.druck = x - x0, y - y0, None
+                if max(abs(dx), abs(dy)) < WISCH:
+                    out.append(("tap", (x0, y0)))
+                else:
+                    out.append(("right" if dx > 0 else "left") if abs(dx) > abs(dy) else ("down" if dy > 0 else "up"))
             elif t == pygame.JOYDEVICEADDED:
                 j = pygame.joystick.Joystick(e.device_index)
                 self.pads[j.get_instance_id()] = j
@@ -75,6 +96,9 @@ class Input:
         if self.gelb and time.monotonic() - self.gelb >= HALTEN_S:
             self.gelb = None
             out.append("praesentation")
+        if self.druck and time.monotonic() - self.druck[1] >= LANG:
+            self.druck = None
+            out.append("back")
         if self.dir and time.monotonic() >= self.next:
             self.next = time.monotonic() + REPEAT
             out.append(self.dir)
