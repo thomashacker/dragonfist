@@ -284,3 +284,23 @@ def test_licht_dimmen(app):
     app.led_t = 0
     frames(app, n=1)
     assert "D 70" in app.st.out
+
+
+def test_geraete_check(app, monkeypatch):
+    import geraete
+    app.sim = False
+    monkeypatch.setattr(app.st, "live", lambda now: True)
+    monkeypatch.setattr(geraete, "ERWARTET", (("LAUTSPRECHER", lambda a: False), ("TOUCH", lambda a: None),
+                                              ("JOYSTICK", lambda a: True)))
+    app.geraete = geraete.Geraete()
+    assert app.geraete.text(app, 100.0) == "FEHLT: LAUTSPRECHER"
+    monkeypatch.setattr(geraete, "ERWARTET", ())
+    for c in app.st.ch:
+        c.v, c.t = 1, 0.0
+    app.st.ch[9].v = 0
+    assert app.geraete.text(app, 101.0) == "FEHLT: LAUTSPRECHER" and app.geraete.text(app, 110.0) == "FEHLT: B4"
+    st = scenes.Settings(app)
+    app.push(st)
+    zeile(st, "GERÄTE")
+    frames(app, ["ok"], n=1)
+    assert top(app) == "Settings"

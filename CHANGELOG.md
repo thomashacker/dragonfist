@@ -3,6 +3,14 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [1.3.0] – 2026-11-26
+
+### Added
+- Geräte-Check: oben rechts steht rot, was fehlt (Pico, Lautsprecher, Touch, Joystick, dauerhaft unterbrochene Strahlen), sonst „PICO“; dieselbe Liste als Zeile GERÄTE in den Einstellungen.
+
+### Fixed
+- OK auf einer reinen Anzeigezeile in den Einstellungen stürzt nicht mehr ab.
+
 ## [1.2.0] – 2026-11-25
 
 ### Fixed
