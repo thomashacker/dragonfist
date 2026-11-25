@@ -19,6 +19,7 @@ from runlog import RunLog, schreiben
 from sound import Sfx
 from inputs import Input
 from netz import Netz
+from praesentation import Praesentation
 from scenes import L, QUER, BG, INK, DIM, GREEN, Intro, ausrichten
 from splash import hold_lock, status
 
@@ -136,7 +137,11 @@ class App:
             pass
 
     def music(self):
-        want = None if self.mute or not self.cfg["musik"] else self.stack[-1].music
+        want = self.stack[-1].music
+        if want is False:
+            self.track = False
+            return
+        want = None if self.mute or not self.cfg["musik"] else want
         if want == self.track:
             return
         self.track = want
@@ -174,7 +179,11 @@ class App:
     def frame(self, actions, now):
         sc = self.stack[-1]
         for act in actions:
-            sc.on(act)
+            if act == "praesentation":
+                if not isinstance(sc, Praesentation):
+                    self.push(Praesentation(self))
+            else:
+                sc.on(act)
             sc = self.stack[-1] if self.stack else sc
         if self.sim and now - self.sim_s >= 0.05:
             self.sim_s = now
@@ -220,7 +229,9 @@ class App:
     def lights(self, sc, leds, now):
         for k, hand in leds:
             self.led[hand] = (k, now + HALTEN[k] if k in HALTEN else None)
-        if sc.leds == "tanz":
+        if sc.leds == "show":
+            cmd = sc.licht(now)
+        elif sc.leds == "tanz":
             cmd = "T"
         elif sc.leds == "welle":
             periode, (r, g, b) = sc.welle()

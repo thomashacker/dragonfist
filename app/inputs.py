@@ -6,7 +6,8 @@ KEYS = {pygame.K_UP: "up", pygame.K_DOWN: "down", pygame.K_LEFT: "left", pygame.
         pygame.K_RETURN: "ok", pygame.K_KP_ENTER: "ok", pygame.K_SPACE: "ok",
         pygame.K_ESCAPE: "back", pygame.K_BACKSPACE: "back", pygame.K_a: "left", pygame.K_d: "right"}
 SIM = {pygame.K_q: 0, pygame.K_w: 6, pygame.K_o: 5, pygame.K_p: 12}
-PAD_BUTTONS = {0: "ok", 1: "back", 2: "ok", 3: "back"}
+PAD_BUTTONS = {0: "ok", 1: "back", 3: "back"}
+GELB, HALTEN_S = 2, 5.0          # gelber Knopf: kurz "gelb", 5 s gehalten startet die Präsentation
 DEAD, DELAY, REPEAT = 0.6, 0.35, 0.12
 
 
@@ -14,7 +15,7 @@ class Input:
     def __init__(self, sim_feed=None, sim_punch=None):
         pygame.joystick.init()
         self.pads, self.sim, self.sim_punch, self.held = {}, sim_feed, sim_punch, set()
-        self.dir, self.next = None, 0.0
+        self.dir, self.next, self.gelb = None, 0.0, None
 
     def held_ch(self):
         return [SIM[k] for k in self.held]
@@ -38,8 +39,14 @@ class Input:
                         self.sim(SIM[e.key], 0)
                 elif e.key in KEYS:
                     out.append(KEYS[e.key])
+                elif e.key == pygame.K_g:
+                    self.gelb = self.gelb or time.monotonic()
                 elif e.key == pygame.K_F11:
                     pygame.display.toggle_fullscreen()
+            elif t in (pygame.KEYUP, pygame.JOYBUTTONUP) and (e.key == pygame.K_g if t == pygame.KEYUP
+                                                              else e.button == GELB):
+                self.gelb and out.append("gelb")
+                self.gelb = None
             elif t == pygame.KEYUP and e.key in self.held:
                 self.held.discard(e.key)
                 self.sim(SIM[e.key], 1)
@@ -49,7 +56,10 @@ class Input:
             elif t == pygame.JOYDEVICEREMOVED:
                 self.pads.pop(e.instance_id, None)
             elif t == pygame.JOYBUTTONDOWN:
-                out.append(PAD_BUTTONS.get(e.button, "ok"))
+                if e.button == GELB:
+                    self.gelb = time.monotonic()
+                else:
+                    out.append(PAD_BUTTONS.get(e.button, "ok"))
             elif t == pygame.JOYHATMOTION:
                 x, y = e.value
                 self._stick("left" if x < 0 else "right" if x > 0 else "up" if y > 0 else "down" if y < 0 else None,
@@ -62,6 +72,9 @@ class Input:
                     if abs(x) > DEAD or abs(y) > DEAD:
                         d = ("right" if x > 0 else "left") if abs(x) > abs(y) else ("down" if y > 0 else "up")
                     self._stick(d, out)
+        if self.gelb and time.monotonic() - self.gelb >= HALTEN_S:
+            self.gelb = None
+            out.append("praesentation")
         if self.dir and time.monotonic() >= self.next:
             self.next = time.monotonic() + REPEAT
             out.append(self.dir)
