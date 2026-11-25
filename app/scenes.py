@@ -42,6 +42,15 @@ class Scene:
     def punch(self, r):
         pass
 
+    def tap(self, p):
+        """Antippen: Ziel unter dem Finger wählen und auslösen; ohne Ziele wie OK."""
+        ziele = getattr(self, "ziele", None)
+        k = next((k for k, r in ziele if r.collidepoint(p)), None) if ziele else -1
+        if k is not None:
+            if k >= 0:
+                self.sel = k
+            self.on("ok")
+
     def draw(self, s, now):
         pass
 
@@ -80,6 +89,7 @@ class Tiles(Scene):
 
     def draw_tiles(self, s, now):
         f, rects = self.app.font, self.rects()
+        self.ziele = list(enumerate(r.copy() for r in rects))
         fits = lambda k, i: all(f.f[k].size(it[i])[0] <= rects[0].w - 24 for it in self.items)
         big, small = "l" if fits("l", 0) else "m", "s" if fits("s", 1) else "xs"
         for k, ((label, sub, _), r) in enumerate(zip(self.items, rects)):
@@ -229,6 +239,18 @@ class Settings(Scene):
         self.set("abstand", v)
         self.app.st.punch.dist = v / 1000
 
+    def tap(self, p):
+        k, box = next(((k, r) for k, r in self.ziele if r.collidepoint(p)), (None, None))
+        if k is None:
+            return
+        if k != self.sel:
+            self.sel = k
+            self.app.play("move")
+        elif self.rows[k][2]:
+            self.on("right" if p[0] >= box.centerx else "left")
+        else:
+            self.on("ok")
+
     def on(self, a):
         label, val, change, act = self.rows[self.sel]
         if a in ("up", "down"):
@@ -249,8 +271,10 @@ class Settings(Scene):
         pygame.draw.line(s, LO, (L.W // 2 - 260, L.y(90)), (L.W // 2 + 260, L.y(90)))
         y0, bw = L.y(90) + 14, min(800, L.W - 32)
         step = min(L.y(58), (L.H - y0 - 46) // len(self.rows))
+        self.ziele = []
         for k, (label, val, change, _) in enumerate(self.rows):
             box = pygame.Rect((L.W - bw) // 2, y0 + k * step, bw, step - 8)
+            self.ziele.append((k, box))
             on = k == self.sel
             pygame.draw.rect(s, INK, box) if on else pygame.draw.rect(s, LO, box, 1)
             col = BG if on else INK

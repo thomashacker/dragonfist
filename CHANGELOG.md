@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [1.1.0] – 2026-11-25
+
+### Added
+- Touch-Bedienung: Kachel, Name oder Einstellung antippen wählt und löst aus, in Einstellungen ändert Tippen auf die linke/rechte Hälfte der gewählten Zeile den Wert. Wischen wirkt wie der Joystick, 0,8 s Halten wie ZURÜCK. Berührungen werden ins Hochformat zurückgedreht.
+
 ## [1.0.1] – 2026-11-25
 
 ### Changed
