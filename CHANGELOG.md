@@ -3,6 +3,11 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [1.0.1] – 2026-11-25
+
+### Changed
+- Kalibrierung im Hochformat: Strahlen in vier Spalten, Health und Ereignisse darunter, alles in voller Schriftgröße statt verkleinert.
+
 ## [1.0.0] – 2026-11-25
 
 Erste Version für den Einsatz.

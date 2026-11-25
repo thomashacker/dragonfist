@@ -286,13 +286,12 @@ class Placeholder(Scene):
 
 
 class Calibration(Scene):
-    sounds, music, leds = SPIEL, None, "spiel"
+    sounds, music, leds, bare = SPIEL, None, "spiel", True
 
     def __init__(self, app):
         super().__init__(app)
         from monitor import Ui
-        self.buf = pygame.Surface(QUER) if L.hoch else app.screen     # Monitor-Ansicht ist quer, hochkant verkleinert
-        self.ui = Ui(self.buf)
+        self.ui = Ui(app.screen)
 
     def on(self, a):
         if a == "back":
@@ -302,10 +301,8 @@ class Calibration(Scene):
             self.app.st.marker()
 
     def draw(self, s, now):
+        self.ui.s = s
         self.ui.draw(self.app.st, now)
-        if self.buf is not s:
-            h = L.W * QUER[1] // QUER[0]
-            s.blit(pygame.transform.smoothscale(self.buf, (L.W, h)), (0, (L.H - h) // 2))
 
 
 class Intro(Scene):
