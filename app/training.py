@@ -74,9 +74,13 @@ def auswerten(punches, dauer, n_a=6, n_ch=13):
 
 
 def laden(datei):
+    """Kaputte Datei wird beiseitegelegt statt beim nächsten Speichern überschrieben."""
     try:
         return json.loads(datei.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except OSError:
+        return {}
+    except ValueError:
+        datei.replace(datei.with_name(f"{datei.stem}.kaputt-{int(time.time())}{datei.suffix}"))
         return {}
 
 
@@ -399,10 +403,17 @@ class Highscore(Scene):
         self.zeigen_neu = neu is not None
 
     def liste(self):
-        disz = list(DISZIPLINEN)[self.sel]
-        beste = rangliste(self.app.scores, disz)
-        rang = {e["id"]: i for i, e in enumerate(beste, 1)}
-        return [(rang[e["id"]], e) for e in (sorted(beste, key=lambda e: -e["id"]) if self.neueste else beste)]
+        try:
+            stand = self.app.scores.stat().st_mtime_ns
+        except OSError:
+            stand = None
+        key = (self.sel, self.neueste, stand)
+        if getattr(self, "_key", None) != key:
+            beste = rangliste(self.app.scores, list(DISZIPLINEN)[self.sel])
+            rang = {e["id"]: i for i, e in enumerate(beste, 1)}
+            self._key, self._liste = key, [(rang[e["id"]], e) for e in
+                                           (sorted(beste, key=lambda e: -e["id"]) if self.neueste else beste)]
+        return self._liste
 
     def on(self, a):
         if a in ("left", "right"):

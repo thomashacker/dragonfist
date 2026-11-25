@@ -138,3 +138,12 @@ def test_highscore_blaettern_und_neueste(app):
     frames(app, n=1)
     hs = app.stack[-1]
     assert hs.oben + hs.n >= 30 and top(app) == "Highscore"
+
+
+def test_kaputte_highscores_bleiben_erhalten(tmp_path):
+    import training
+    datei = tmp_path / "highscores.json"
+    datei.write_text('{"ZEIT": [', encoding="utf-8")
+    training.eintragen(datei, "ZEIT", dict(id=1, name="A"))
+    assert [e["name"] for e in training.laden(datei)["ZEIT"]] == ["A"]
+    assert len(list(tmp_path.glob("highscores.kaputt-*.json"))) == 1

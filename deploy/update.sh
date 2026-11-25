@@ -12,10 +12,21 @@ log() { echo "$(date '+%F %T') $*" >> "$LOG"; }
 trap 'rm -f "$0" "$STATUS"' EXIT
 
 [ -e "$HOME/.dragonfist-noupdate" ] && exit 0
+JETZT=$(dirname "$LOG")/jetzt
+VERFUEGBAR=$(dirname "$LOG")/verfuegbar
 git fetch -q origin main 2>/dev/null || exit 0
 old=$(git rev-parse HEAD)
 new=$(git rev-parse origin/main)
-[ "$old" = "$new" ] && exit 0
+if [ "$old" = "$new" ]; then
+  rm -f "$VERFUEGBAR" "$JETZT"
+  exit 0
+fi
+git show "$new":VERSION > "$VERFUEGBAR"
+if [ -e "$JETZT" ]; then
+  rm -f "$JETZT"
+elif ! grep -q '"auto_update": true' settings.json 2>/dev/null; then
+  exit 0
+fi
 
 echo "UPDATE AUF v$(git show "$new":VERSION) WIRD INSTALLIERT …" > "$STATUS"
 req=$(git diff --name-only "$old" "$new" -- requirements.txt requirements-dev.txt)
@@ -27,6 +38,7 @@ if SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m pytest -q -x 
   for u in deploy/*.service deploy/*.timer; do systemctl --user link "$PWD/$u" > /dev/null 2>&1; done
   systemctl --user daemon-reload
   systemctl --user enable --now dragonfist-splash.service > /dev/null 2>&1
+  rm -f "$VERFUEGBAR"
   systemctl --user restart dragonfist.service
   log "update ${old:0:7} -> ${new:0:7} v$(cat VERSION)"
 else
