@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.20.0] – 2026-11-25
+
+### Changed
+- Modus-Einstellungen Stelle für Stelle: ◀▶ wählt die Ziffer, ▲▼ ändert sie. ZEIT als MM:SS bis 99:59, SCHLÄGE bis 999, REAKTION bis 99 Runden und Kombo 9; 0 startet als 1.
+- Zeitlimit im Spiel und in der Rangliste als MM:SS.
+
 ## [0.19.1] – 2026-11-25
 
 ### Changed
