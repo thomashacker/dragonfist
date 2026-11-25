@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from training import auswerten, rangliste, Stats, SEITE_S
+from training import auswerten, rangliste, Stats, SEITE_S, TASTEN
 from test_app import frames, top, to_title
 
 
@@ -14,7 +14,7 @@ def test_auswerten():
     p = [r(0.5, "L", 5.0, 2.5), r(1.0, "R", 10.0, am=1 << 5, bm=1 << 12), r(3.0, "L", 5.0), r(3.5, "L", None, ok=False)]
     st = auswerten(p, 4.0)
     assert (st["n"], st["nl"], st["nr"], st["fehl"]) == (3, 2, 1, 1)
-    assert st["v_avg"] == pytest.approx(24.0) and st["vb_avg"] == pytest.approx(9.0) and st["v_max"] == pytest.approx(36)
+    assert st["v_avg"] == 0 and st["vb_avg"] == 0 and st["v_max"] == 0 and st["v_n"] == 3
     assert st["takt"] == [1.0, 0.5] and st["takt_avg"] == pytest.approx(0.75)
     assert st["wege"][0] == ("L", pytest.approx(1 / 12), pytest.approx(1 / 14))
     assert 0 < st["genau"] < 30 and st["streu"]["L"] == pytest.approx(0)
@@ -30,17 +30,24 @@ def test_training_flow_saves_highscore(app):
     assert len(app.stack[-1].punches) == 5
     frames(app, ["back"])
     st = app.stack[-1]
-    assert isinstance(st, Stats) and st.st["n"] == 5 and st.st["nl"] == 3 and len(st.st["zur"]) == 5
+    assert isinstance(st, Stats) and st.st["n"] == 5 and st.st["nl"] == 3 and len(st.st["zur"]) >= 3
     for i in range(5):
         st.t0 = time.monotonic() - i * SEITE_S - 3
         frames(app, n=1)
         assert st.seite == i
     frames(app, ["ok", "ok"])
     assert top(app) == "NameEntry"
-    frames(app, ["up", "right", "up", "ok"])
+    ne = app.stack[-1]
+    tipp = lambda c: next(r.center for k, r in ne.ziele if TASTEN[ne.tasten[k][0]][ne.tasten[k][1]][0] == c)
+    frames(app, n=1)
+    frames(app, [("tap", tipp("B")), ("tap", tipp("X")), ("tap", tipp("⌫")), "back", ("tap", tipp("B"))])
+    assert ne.name == "B" and top(app) == "NameEntry"
+    frames(app, ["up", "ok", "down", "down", "right"])
+    assert ne.name == "BF" and (ne.zeile, ne.sp) == (4, 1)
+    frames(app, ["ok"])
     assert top(app) == "Highscore" and len(app.stack) == 2
     e = rangliste(app.scores, "TRAINING")
-    assert len(e) == 1 and e[0]["name"] == "BA" and e[0]["n"] == 5
+    assert len(e) == 1 and e[0]["name"] == "BF" and e[0]["n"] == 5
     frames(app, ["back"])
     assert top(app) == "Title"
 
@@ -147,3 +154,37 @@ def test_kaputte_highscores_bleiben_erhalten(tmp_path):
     training.eintragen(datei, "ZEIT", dict(id=1, name="A"))
     assert [e["name"] for e in training.laden(datei)["ZEIT"]] == ["A"]
     assert len(list(tmp_path.glob("highscores.kaputt-*.json"))) == 1
+
+
+def test_highscore_listen_je_einstellung_und_bester_je_name(app):
+    import training
+    base = dict(datum="1.1.26", takt_avg=1.0, v_avg=10.0, dauer=60, dauer_s=60.0)
+    for k, (name, ziel, n) in enumerate((("KIM", 60, 300), ("KIM", 60, 350), ("MAX", 60, 320), ("MAX", 5, 40))):
+        training.eintragen(app.scores, "ZEIT", dict(base, id=k + 1, name=name, ziel=ziel, n=n))
+    training.eintragen(app.scores, "TRAINING", dict(base, id=9, name="KURZ", n=10, dauer=12))
+    d = training.laden(app.scores)
+    assert ("ZEIT", 5) in training.listen(d) and ("ZEIT", 60) in training.listen(d)
+    alle, beste = training.wertung(d, "ZEIT", 60)
+    assert len(alle) == 3 and [(e["name"], e["n"]) for e in beste] == [("KIM", 350), ("MAX", 320)]
+    assert training.wertung(d, "TRAINING", None)[1] == []
+    app.push(training.Highscore(app, "ZEIT", neu=4, ziel=5))
+    hs = app.stack[-1]
+    frames(app, n=1)
+    assert [e["n"] for _, e in hs.liste()] == [40]
+    frames(app, ["right"])
+    assert hs.wahl == ("ZEIT", 60) and [r for r, _ in hs.liste()] == [1, 2]
+    frames(app, ["ok"])
+    assert [r for r, _ in hs.liste()] == [2, 1, "–"]
+
+
+def test_reaktion_fehlstart_kostet():
+    import training
+    a = dict(r_avg=0.30, r_best=0.2, fehlstart=2)
+    b = dict(r_avg=0.45, r_best=0.3, fehlstart=0)
+    assert sorted([a, b], key=training.DISZIPLINEN["REAKTION"][1])[0] is b
+
+
+def test_tempo_nur_mit_genug_messwerten_und_ohne_ausreisser():
+    p = [r(t, "L", v) for t, v in ((0.5, 3.0), (1.0, 3.0), (1.5, 3.0), (2.0, 3.0), (2.5, 10.0))]
+    st = auswerten(p, 3.0)
+    assert st["v_n"] == 5 and st["v_avg"] == pytest.approx(15.84) and st["v_max"] == pytest.approx(10.8)

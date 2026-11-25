@@ -28,7 +28,7 @@ def test_zeit_countdown_limit_and_highscore(app):
     sc.ende = time.monotonic() - 1
     frames(app, n=1)
     assert top(app) == "Stats" and app.stack[-1].st["n"] == 3 and app.stack[-1].st["ziel"] == 10
-    frames(app, ["ok", "ok", "ok"])
+    frames(app, ["ok", "ok", "ok", "down", "down", "right", "ok"])
     e = rangliste(app.scores, "ZEIT")
     assert top(app) == "Highscore" and len(e) == 1 and e[0]["ziel"] == 10 and e[0]["n"] == 3
 
@@ -98,7 +98,7 @@ def test_reaktion_combo_and_false_start(app):
     frames(app, n=2)
     st = app.stack[-1].st
     assert top(app) == "ReaktionStats" and len(st["zeiten"]) == 2 and 0 < st["r_best"] <= st["r_avg"] < 0.5
-    frames(app, ["ok", "ok", "ok"])
+    frames(app, ["ok", "ok", "ok", "down", "down", "right", "ok"])
     assert top(app) == "Highscore" and rangliste(app.scores, "REAKTION")[0]["kombo"] == 2
 
 
@@ -132,6 +132,33 @@ def test_faustregen_nur_zu_langsam_zaehlt(app):
     frames(app, n=1)
     st = app.stack[-1].st
     assert top(app) == "Stats" and st["disz"] == "FAUSTREGEN" and st["n"] == 81
-    frames(app, ["ok", "ok", "ok"])
+    frames(app, ["ok", "ok", "ok", "down", "down", "right", "ok"])
     e = rangliste(app.scores, "FAUSTREGEN")
     assert top(app) == "Highscore" and len(e) == 1 and e[0]["ziel"] == st["ziel"]
+
+
+def test_punkte_durchhalten(app):
+    from modi import Punkte
+    sp = Punkte(app)
+    app.push(sp)
+    t = 100.0
+    treffer = lambda hand, v=None: dict(ok=True, hand=hand, v=v, t=t, tb_s=t, am=1, bm=1 << 6)
+    sp.punch(dict(ok=False, hand="L", v=None, t=t, tb_s=t, am=1, bm=0))
+    assert sp.start is None
+    sp.punch(treffer("L", 5.0))
+    assert sp.start == t and sp.punkte == 10 + 18
+    for k in range(1, 61):
+        t = 100.0 + k * 0.2
+        sp.tick(t)
+        sp.t_draw = t
+        sp.punch(treffer("R" if k % 2 else "L"))
+    assert sp.mult(t) == 2 and sp.mult_max == 2 and sp.energie > 0
+    sp.tick(t + 1.2)
+    assert sp.mult(t + 1.2) == 1
+    sp.t_draw = t + 1.2
+    sp.tick(t + 10)
+    assert sp.t_ende is not None and sp.energie == 0
+    frames(app, n=1)
+    sp.t_ende -= 2
+    frames(app, n=1)
+    assert top(app) == "Stats" and app.stack[-1].st["punkte"] == sp.punkte

@@ -3,6 +3,18 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [1.2.0] – 2026-11-25
+
+### Fixed
+- Tempo nur noch, wenn es echt messbar ist: steckt ein fremder Arm im selben oder Nachbarstrahl von A, rutscht die Faust von einem A-Strahl zum nächsten (bis 60 ms) oder stößt sie mit dem Arm in A erneut durch B, zählt der Schlag ohne Tempo. Im Präsentationslauf vom 25.11. lagen vorher 7 % der Tempi über 40 km/h, jetzt 0,7 % (und die fallen weiter unter die 40-km/h-Grenze). Replay-Test mit 2 min echter Daten.
+- Ø-Tempo erst ab 5 gemessenen Schlägen, TOP ist der zweitbeste Wert statt des Maximums, damit kein Ausreißer zählt.
+
+### Added
+- Highscore: je Einstellung eine eigene Liste (z. B. ZEIT 60 S, SCHLÄGE 100), ◀▶ blättert durch alle. BESTE zeigt je Name nur den besten Lauf, NEUESTE alle. TRAINING wertet erst ab 30 s, REAKTION rechnet je Fehlstart 0,1 s drauf.
+- Modus PUNKTE: Energie sinkt immer schneller, Treffer füllen nach; 10 Punkte + km/h + 5 für Handwechsel, mal Multiplikator bis ×5 (alle 10 s ohne Fehlschlag oder Pause).
+- Bildschirmtastatur für Namen (tippen oder Joystick), ohne Bindestrich.
+- Einstellung LICHT 10–100 % (100 % = bisherige 35 %); Pico-Firmware 5 versteht dafür `D <prozent>`.
+
 ## [1.1.0] – 2026-11-25
 
 ### Added

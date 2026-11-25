@@ -30,7 +30,7 @@ MUSIC = ROOT / "app" / "assets" / "music"
 FARBE = dict(a=(255, 90, 0), b=(0, 255, 0), punkt=(0, 80, 255), fehl=(255, 0, 0))
 HALTEN = dict(punkt=0.8, fehl=0.8)
 CFG = dict(audio=None, volume=80, ton=True, musik=True, abstand=200, zeit_limit=30, serie_n=20, reak_runden=10,
-           reak_kombo=1, ausrichtung="hoch_l", auto_update=False)
+           reak_kombo=1, ausrichtung="hoch_l", auto_update=False, licht=100)
 DREHUNG = {"quer": 0, "hoch_l": 90, "hoch_r": -90}
 
 
@@ -250,6 +250,7 @@ class App:
             cmd = "L " + " ".join(hex6)
         if cmd != self.led_sent or now - self.led_t > 1:
             self.led_sent, self.led_t = cmd, now
+            self.st.send(f"D {self.cfg['licht']}")
             self.st.send(cmd)
 
     def overlay(self, now):

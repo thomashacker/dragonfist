@@ -1,4 +1,4 @@
-"""Spielmodi ZEIT, SCHLÄGE und REAKTION: einstellen, spielen, auswerten und speichern wie das Training."""
+"""Spielmodi ZEIT, SCHLÄGE, REAKTION und PUNKTE: einstellen, spielen, auswerten und speichern wie das Training."""
 import math
 import random
 import time
@@ -308,10 +308,75 @@ class ReaktionStats(Scene):
         f.text(s, "OK  speichern oder verwerfen", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
-def balken(s, y, k, h=12):
+class Punkte(Spiel):
+    """Durchhalten: die Energie sinkt immer schneller, jeder Treffer füllt nach. Ein Treffer bringt 10 Punkte plus
+    gemessene km/h plus 5 für den Handwechsel, mal Multiplikator. Der steigt alle 10 s ohne Patzer bis ×5;
+    ein Fehlschlag oder 1 s Pause setzt ihn auf ×1."""
+    FUELL, ENTZUG, STEIGT, PAUSE_S, STUFE_S, MULT_MAX = 0.08, 0.25, 0.006, 1.0, 10.0, 5
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.start = self.t_mult = self.t_last = self.t_ende = self.t_draw = None
+        self.energie, self.punkte, self.mult_max, self.hand = 1.0, 0, 1, None
+
+    def mult(self, t):
+        return 1 if self.t_mult is None else min(self.MULT_MAX, 1 + int((t - self.t_mult) / self.STUFE_S))
+
+    def punch(self, r):
+        if self.t_ende is not None or (self.start is None and not r["ok"]):
+            return
+        t = _zeit(r)
+        if self.start is None:
+            self.start = self.t_mult = self.t_last = t
+            self.app.play("los")
+        self.punches.append(r | {"t": t - self.start})
+        if not r["ok"]:
+            self.t_mult = t
+            return
+        m = self.mult(t)
+        wechsel = self.hand is not None and r["hand"] != self.hand
+        self.punkte += m * (10 + round(r["v"] * 3.6 if r["v"] else 0) + 5 * wechsel)
+        self.hand, self.t_last, self.mult_max = r["hand"], t, max(self.mult_max, m)
+        self.energie = min(1.0, self.energie + self.FUELL)
+
+    def tick(self, now):
+        if self.start is None or self.t_ende is not None:
+            return
+        self.energie -= (now - (self.t_draw or now)) * (self.ENTZUG + self.STEIGT * (now - self.start))
+        if now - max(self.t_last, self.t_mult) > self.PAUSE_S:
+            self.t_mult = now
+        if self.energie <= 0:
+            self.energie, self.t_ende = 0.0, now
+            self.app.play("ende")
+
+    def draw(self, s, now):
+        self.tick(now)
+        self.t_draw = now
+        f = self.app.font
+        if self.t_ende is not None and now - self.t_ende > 1.5:
+            st = auswerten(self.punches, self.t_ende - self.start) | dict(disz="PUNKTE", punkte=self.punkte,
+                                                                         mult_max=self.mult_max)
+            return self.app.replace(Stats(self.app, st), 0.4)
+        f.text(s, "PUNKTE", (L.W // 2, L.y(46)), "l", INK, "center")
+        f.text(s, str(self.punkte), (L.W // 2, L.y(170)), "xl", GREEN if self.t_ende is None else INK, "center")
+        if self.start is None:
+            f.text(s, "Los geht's mit dem ersten Schlag", (L.W // 2, L.y(250)), "s", DIM, "center")
+        m = self.mult(now)
+        f.text(s, f"× {m}", (L.W // 2, L.y(250)), "l", (INK, GREEN, GREEN, (255, 200, 0), ROT)[m - 1], "center")
+        balken(s, L.y(310), self.energie, 24, ROT if self.energie < 0.25 else GREEN)
+        f.text(s, "ENERGIE", (L.W // 2, L.y(345)), "xs", DIM, "center")
+        if self.start is not None:
+            f.text(s, mmss((self.t_ende or now) - self.start), (L.W // 2, L.y(400)), "m", DIM, "center")
+        if self.t_ende is not None:
+            f.text(s, "LEER!", (L.W // 2, L.y(470)), "xl", ROT, "center")
+        f.text(s, "treffen füllt  ·  10 s ohne Patzer: Multiplikator +1  ·  ZURÜCK abbrechen", (L.W // 2, L.H - 18),
+               "xs", DIM, "center")
+
+
+def balken(s, y, k, h=12, col=GREEN):
     w = min(600, L.W - 80)
     pygame.draw.rect(s, LO, ((L.W - w) // 2, y, w, h), 1)
-    pygame.draw.rect(s, GREEN, ((L.W - w) // 2, y, int(w * k), h))
+    pygame.draw.rect(s, col, ((L.W - w) // 2, y, int(w * k), h))
 
 
 def zeit(app):

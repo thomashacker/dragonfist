@@ -273,3 +273,14 @@ def test_touch_drehung():
         rot = next((x, y) for x in range(g.get_width()) for y in range(g.get_height())
                    if g.get_at((x, y))[:3] == (255, 0, 0))
         assert drehung(d, w, h)(rot) == (10, 20)
+
+
+def test_licht_dimmen(app):
+    st = scenes.Settings(app)
+    app.push(st)
+    zeile(st, "LICHT")
+    frames(app, ["left", "left", "left"], n=1)
+    assert app.cfg["licht"] == 70
+    app.led_t = 0
+    frames(app, n=1)
+    assert "D 70" in app.st.out

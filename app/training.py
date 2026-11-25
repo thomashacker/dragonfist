@@ -13,23 +13,38 @@ def _ms(v):
     return f"{v * 1000:.0f}"
 
 
+def kmh(e, k="v_avg"):
+    return f"{e[k]:.1f}" if e.get(k) else "–"
+
+
+def _reak(e):
+    return e["r_avg"] + STRAFE_S * e.get("fehlstart", 0)
+
+
 # Spalten (Titel, x, Wert) und Sortierung je Disziplin; besser = kleinerer Schlüssel
 DISZIPLINEN = {
-    "TRAINING": ((("Ø KM/H", 400, lambda e: f"{e['v_avg']:.1f}"), ("MAX", 520, lambda e: f"{e['v_max']:.1f}"),
+    "TRAINING": ((("Ø KM/H", 400, kmh), ("TOP", 520, lambda e: kmh(e, "v_max")),
                   ("SCHLÄGE", 640, lambda e: str(e["n"])), ("ZEIT", 780, lambda e: mmss(e["dauer"]))),
-                 lambda e: (-e["v_avg"], -e["n"])),
-    "ZEIT": ((("SCHLÄGE", 400, lambda e: str(e["n"])), ("LIMIT", 520, lambda e: mmss(e["ziel"])),
-              ("PRO S", 640, lambda e: f"{e['takt_avg']:.2f}"), ("Ø KM/H", 780, lambda e: f"{e['v_avg']:.1f}")),
-             lambda e: (-e["takt_avg"], -e["v_avg"])),
-    "SCHLÄGE": ((("ZEIT", 400, lambda e: f"{e['dauer_s']:.2f} s"), ("SCHLÄGE", 540, lambda e: str(e["ziel"])),
-                 ("PRO S", 660, lambda e: f"{e['takt_avg']:.2f}"), ("Ø KM/H", 780, lambda e: f"{e['v_avg']:.1f}")),
-                lambda e: (-e["takt_avg"], -e["v_avg"])),
-    "REAKTION": ((("Ø MS", 400, lambda e: _ms(e["r_avg"])), ("BESTE", 520, lambda e: _ms(e["r_best"])),
-                  ("KOMBO", 640, lambda e: str(e["kombo"])), ("RUNDEN", 760, lambda e: str(e["ziel"]))),
-                 lambda e: (e["r_avg"], e["r_best"])),
+                 lambda e: (-(e.get("v_avg") or 0), -e["n"])),
+    "ZEIT": ((("SCHLÄGE", 400, lambda e: str(e["n"])), ("PRO S", 520, lambda e: f"{e['takt_avg']:.2f}"),
+              ("Ø KM/H", 640, kmh), ("TOP", 760, lambda e: kmh(e, "v_max"))),
+             lambda e: (-e["n"], -(e.get("v_avg") or 0))),
+    "SCHLÄGE": ((("ZEIT", 400, lambda e: f"{e['dauer_s']:.2f} s"), ("PRO S", 540, lambda e: f"{e['takt_avg']:.2f}"),
+                 ("Ø KM/H", 660, kmh), ("TOP", 780, lambda e: kmh(e, "v_max"))),
+                lambda e: (e["dauer_s"], -(e.get("v_avg") or 0))),
+    "REAKTION": ((("WERTUNG", 400, lambda e: _ms(_reak(e))), ("Ø MS", 520, lambda e: _ms(e["r_avg"])),
+                  ("FEHLST.", 640, lambda e: str(e.get("fehlstart", 0))), ("KOMBO", 760, lambda e: str(e["kombo"]))),
+                 lambda e: (_reak(e), e["r_best"])),
+    "PUNKTE": ((("PUNKTE", 400, lambda e: str(e["punkte"])), ("ZEIT", 540, lambda e: mmss(e["dauer"])),
+                ("SCHLÄGE", 660, lambda e: str(e["n"])), ("MULTI", 780, lambda e: f"×{e['mult_max']}")),
+               lambda e: (-e["punkte"], -e["dauer_s"])),
 }
+# Nur gleiche Einstellungen sind vergleichbar: je Ziel eine eigene Liste
+GRUPPE = {"ZEIT": "{} S", "SCHLÄGE": "{} SCHLÄGE", "REAKTION": "{} RUNDEN"}
+STRAFE_S = 0.1                 # Reaktion: jeder Fehlstart kostet so viel
+MIN_TRAINING_S = 30            # kürzere Trainings stehen nur unter NEUESTE
+MIN_TEMPO = 5                  # so viele gemessene Schläge braucht ein Tempo-Wert; TOP ist der zweitbeste
 SEITE_S, ANIM_S = 6.5, 2.4
-ALPHA = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
 NAME_LEN = 8
 
 
@@ -69,7 +84,9 @@ def auswerten(punches, dauer, n_a=6, n_ch=13):
     mitte = [abs((xa + xb) / 2 - 0.5) for _, xa, xb in wege]
     return dict(dauer=dauer, n=n, nl=sum(r["hand"] == "L" for r in ok), nr=sum(r["hand"] == "R" for r in ok),
                 fehl=len(punches) - n, takt=takt, takt_avg=n / dauer, takt_max=max(takt), hin=hin, zur=zur,
-                v_avg=_mittel(hin), vb_avg=_mittel(zur), v_max=max(hin, default=0.0), wege=wege,
+                v_avg=_mittel(hin) if len(hin) >= MIN_TEMPO else 0.0,
+                vb_avg=_mittel(zur) if len(zur) >= MIN_TEMPO else 0.0,
+                v_max=sorted(hin)[-2] if len(hin) >= MIN_TEMPO else 0.0, v_n=len(hin), wege=wege,
                 genau=100 * (1 - 2 * _mittel(mitte)) if mitte else 0.0, streu=streu)
 
 
@@ -92,6 +109,23 @@ def eintragen(datei, disz, e):
 
 def rangliste(datei, disz):
     return sorted(laden(datei).get(disz, []), key=DISZIPLINEN[disz][1])
+
+
+def listen(d):
+    """Alle Highscore-Listen als (Disziplin, Ziel); Ziel None = eine Liste für die ganze Disziplin."""
+    out = []
+    for disz in DISZIPLINEN:
+        ziele = sorted({e.get("ziel") for e in d.get(disz, [])} - {None}) if disz in GRUPPE else []
+        out += [(disz, z) for z in ziele] or [(disz, None)]
+    return out
+
+
+def wertung(d, disz, ziel):
+    """Alle Einträge einer Liste und die gewerteten: beste zuerst, je Name nur der beste."""
+    alle = sorted((e for e in d.get(disz, []) if ziel is None or e.get("ziel") == ziel), key=DISZIPLINEN[disz][1])
+    gut = [e for e in alle if disz != "TRAINING" or e["dauer"] >= MIN_TRAINING_S]
+    namen = set()
+    return alle, [e for e in gut if not (e["name"] in namen or namen.add(e["name"]))]
 
 
 def _kurve(s, r, werte, ymax, col, k, w=3):
@@ -222,6 +256,9 @@ class Stats(Scene):
         f.text(s, "◀▶ blättern  ·  OK  speichern oder verwerfen", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
     def zeit(self, s, f, k):
+        if "punkte" in self.st:
+            f.text(s, f"{round(self.st['punkte'] * k)} PUNKTE", (L.W // 2, L.y(200)), "xl", GREEN, "center")
+            f.text(s, f"bis × {self.st['mult_max']}", (L.W // 2, L.y(470)), "m", DIM, "center")
         f.text(s, mmss(self.st["dauer"] * k), (L.W // 2, L.y(290)), "xl", INK, "center")
         f.text(s, f"{self.st['n']} Schläge  ·  {self.st['fehl']} Fehlschläge", (L.W // 2, L.y(400)), "m", DIM, "center")
 
@@ -256,7 +293,7 @@ class Stats(Scene):
         _strich(s, r, st["v_avg"], ymax, GREEN, k)
         _strich(s, r, st["vb_avg"], ymax, BLAU, k)
         kennzahlen(s, f, [(name, f"{v * k:.1f}", col, "km/h", "l") for name, v, col in
-                     (("HIN  Ø", st["v_avg"], GREEN), ("ZURÜCK  Ø", st["vb_avg"], BLAU), ("MAX", st["v_max"], INK))],
+                     (("HIN  Ø", st["v_avg"], GREEN), ("ZURÜCK  Ø", st["vb_avg"], BLAU), ("TOP", st["v_max"], INK))],
               r.bottom)
 
     def weg(self, s, f, k):
@@ -292,13 +329,14 @@ def speichern(app, st, name):
     disz = st.get("disz", "TRAINING")
     e = dict(id=int(time.time() * 1000), name=name, datum=time.strftime("%d.%m.%y"), dauer=round(st["dauer"]),
              dauer_s=round(st["dauer"], 2), n=st["n"], nl=st["nl"], nr=st["nr"], v_avg=round(st["v_avg"], 2),
-             vb_avg=round(st["vb_avg"], 2), v_max=round(st["v_max"], 2), takt_avg=round(st["takt_avg"], 3),
+             vb_avg=round(st["vb_avg"], 2), v_max=round(st["v_max"], 2), v_n=st.get("v_n", 0),
+             takt_avg=round(st["takt_avg"], 3),
              genau=round(st["genau"], 1))
-    e |= {k: st[k] for k in ("ziel", "kombo", "r_avg", "r_best", "fehlstart") if k in st}
+    e |= {k: st[k] for k in ("ziel", "kombo", "r_avg", "r_best", "fehlstart", "punkte", "mult_max") if k in st}
     eintragen(app.scores, disz, e)
     app.cfg["name"] = name
     app.save()
-    app.home(Highscore(app, disz, e["id"]))
+    app.home(Highscore(app, disz, e["id"], e.get("ziel") if disz in GRUPPE else None))
 
 
 def bekannte_namen(datei):
@@ -353,73 +391,113 @@ class NamenWahl(Scene):
         f.text(s, "▲▼ wählen  ·  OK speichern  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
+EINZUG = (0, 0, 0.5, 0, 0)
+TASTEN = [[(c, c, 1) for c in "1234567890"], [(c, c, 1) for c in "QWERTZUIOP"], [(c, c, 1) for c in "ASDFGHJKL"],
+          [(c, c, 1) for c in "YXCVBNM"] + [("⌫", "del", 3)], [("LEER", " ", 6), ("OK", "ok", 4)]]
+
+
 class NameEntry(Scene):
+    """Bildschirmtastatur: antippen oder mit dem Joystick wählen und OK; ROT löscht, bei leerem Namen zurück."""
     bare = True
 
     def __init__(self, app, st):
         super().__init__(app)
-        name = app.cfg.get("name", "")[:NAME_LEN] or "A"
-        self.st, self.pos = st, 0
-        self.z = [c if c in ALPHA else " " for c in name.ljust(NAME_LEN)]
+        self.st, self.name, self.zeile, self.sp = st, "", 2, 0
+        self.tasten = [(z, i) for z, reihe in enumerate(TASTEN) for i in range(len(reihe))]
+
+    @property
+    def sel(self):
+        return self.tasten.index((self.zeile, self.sp))
+
+    @sel.setter
+    def sel(self, k):
+        self.zeile, self.sp = self.tasten[k]
+
+    def _mitte(self, z, i):
+        return EINZUG[z] + sum(w for _, _, w in TASTEN[z][:i]) + TASTEN[z][i][2] / 2
 
     def on(self, a):
-        if a in ("up", "down"):
-            self.z[self.pos] = ALPHA[(ALPHA.index(self.z[self.pos]) + (1 if a == "up" else -1)) % len(ALPHA)]
+        reihe = TASTEN[self.zeile]
+        if a in ("left", "right"):
+            self.sp = (self.sp + (1 if a == "right" else -1)) % len(reihe)
             self.app.play("move")
-        elif a in ("left", "right"):
-            self.pos = min(NAME_LEN - 1, max(0, self.pos + (1 if a == "right" else -1)))
+        elif a in ("up", "down"):
+            x = self._mitte(self.zeile, self.sp)
+            self.zeile = (self.zeile + (1 if a == "down" else -1)) % len(TASTEN)
+            self.sp = min(range(len(TASTEN[self.zeile])), key=lambda i: abs(self._mitte(self.zeile, i) - x))
             self.app.play("move")
         elif a == "back":
             self.app.play("back")
-            self.app.pop()
+            if not self.name:
+                return self.app.pop()
+            self.name = self.name[:-1]
         elif a == "ok":
-            name = "".join(self.z).strip()
-            if not name:
-                return self.app.play("back")
-            self.app.play("ok")
-            speichern(self.app, self.st, name)
+            wert = reihe[self.sp][1]
+            if wert == "ok":
+                name = self.name.strip()
+                if not name:
+                    return self.app.play("back")
+                self.app.play("ok")
+                return speichern(self.app, self.st, name)
+            if wert == "del":
+                self.name = self.name[:-1]
+            elif len(self.name) < NAME_LEN and (wert != " " or self.name):
+                self.name += wert
+            self.app.play("move")
 
     def draw(self, s, now):
         f = self.app.font
-        f.text(s, "NAME EINGEBEN", (L.W // 2, L.y(70)), "l", INK, "center")
-        step = min(84, (L.W - 40) // NAME_LEN)
-        x0 = (L.W - NAME_LEN * step) // 2
-        for i, c in enumerate(self.z):
-            r = pygame.Rect(x0 + i * step, L.y(230), step - 12, 96)
-            on = i == self.pos
-            pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 3)
-            f.text(s, c if c != " " else "·" if not on else "", r.center, "l", BG if on else INK, "center")
-            if on:
-                f.text(s, "▲", (r.centerx, r.y - 26), "s", INK, "center")
-                f.text(s, "▼", (r.centerx, r.bottom + 26), "s", INK, "center")
-        f.text(s, "▲▼ Buchstabe  ·  ◀▶ Stelle  ·  OK speichern  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
+        f.text(s, "NAME EINGEBEN", (L.W // 2, L.y(50)), "l", INK, "center")
+        feld = pygame.Rect(L.W // 2 - 240, L.y(100), 480, 80)
+        pygame.draw.rect(s, LO, feld, 3)
+        strich = "_" if int(now * 2) % 2 and len(self.name) < NAME_LEN else ""
+        f.text(s, self.name + strich if self.name or strich else " ", feld.center, "l", INK, "center")
+        u = min(92, (L.W - 32) // 10)
+        h = min(84, (L.H - feld.bottom - 80) // len(TASTEN))
+        x0, y0 = (L.W - 10 * u) // 2, feld.bottom + max(30, (L.H - feld.bottom - 50 - h * len(TASTEN)) // 2)
+        self.ziele = []
+        for z, reihe in enumerate(TASTEN):
+            x = x0 + EINZUG[z] * u
+            for i, (label, _, w) in enumerate(reihe):
+                r = pygame.Rect(x + 3, y0 + z * h + 3, w * u - 6, h - 6)
+                x += w * u
+                self.ziele.append((len(self.ziele), r))
+                on = (z, i) == (self.zeile, self.sp)
+                pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 2)
+                f.text(s, label, r.center, "m", BG if on else INK, "center")
+        f.text(s, "tippen oder ◀▶▲▼ + OK  ·  ROT löscht", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
 class Highscore(Scene):
-    """▲▼ blättert, OK/Gelb wechselt zwischen BESTE und NEUESTE, ◀▶ wechselt die Disziplin."""
+    """▲▼ blättert, OK/Gelb wechselt zwischen BESTE (je Name der beste) und NEUESTE, ◀▶ wechselt die Liste."""
     bare, ZEILE = True, 44
 
-    def __init__(self, app, disz="TRAINING", neu=None):
+    def __init__(self, app, disz="TRAINING", neu=None, ziel=None):
         super().__init__(app)
-        self.sel, self.neu, self.oben, self.neueste, self.n = list(DISZIPLINEN).index(disz), neu, 0, False, 1
-        self.zeigen_neu = neu is not None
+        self.wahl, self.neu, self.oben, self.neueste, self.n = (disz, ziel), neu, 0, False, 1
+        self.zeigen_neu, self.listen = neu is not None, []
 
     def liste(self):
         try:
             stand = self.app.scores.stat().st_mtime_ns
         except OSError:
             stand = None
-        key = (self.sel, self.neueste, stand)
-        if getattr(self, "_key", None) != key:
-            beste = rangliste(self.app.scores, list(DISZIPLINEN)[self.sel])
+        if getattr(self, "_key", None) != (self.wahl, self.neueste, stand):
+            d = laden(self.app.scores)
+            self.listen = listen(d)
+            if self.wahl not in self.listen:
+                self.wahl = next((k for k in self.listen if k[0] == self.wahl[0]), self.listen[0])
+            alle, beste = wertung(d, *self.wahl)
             rang = {e["id"]: i for i, e in enumerate(beste, 1)}
-            self._key, self._liste = key, [(rang[e["id"]], e) for e in
-                                           (sorted(beste, key=lambda e: -e["id"]) if self.neueste else beste)]
+            zeigen = sorted(alle, key=lambda e: -e["id"]) if self.neueste else beste
+            self._key, self._liste = (self.wahl, self.neueste, stand), [(rang.get(e["id"], "–"), e) for e in zeigen]
         return self._liste
 
     def on(self, a):
         if a in ("left", "right"):
-            self.sel = (self.sel + (1 if a == "right" else -1)) % len(DISZIPLINEN)
+            self.liste()
+            k = self.listen.index(self.wahl)
+            self.wahl = self.listen[(k + (1 if a == "right" else -1)) % len(self.listen)]
             self.oben = 0
             self.app.play("move")
         elif a in ("up", "down"):
@@ -435,16 +513,19 @@ class Highscore(Scene):
     def draw(self, s, now):
         f = self.app.font
         f.text(s, "HIGHSCORE", (L.W // 2, L.y(46)), "l", INK, "center")
+        liste = self.liste()
+        disz, ziel = self.wahl
         tw = L.W // len(DISZIPLINEN)
         for i, d in enumerate(DISZIPLINEN):
             r = pygame.Rect(i * tw + 8, L.y(82), tw - 16, 36)
-            on = i == self.sel
+            on = d == disz
             pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 1)
             f.text(s, d, r.center, "xs", BG if on else DIM, "center")
-        hilfe = f"◀▶ Disziplin  ·  ▲▼ blättern  ·  OK {'BESTE' if self.neueste else 'NEUESTE'}  ·  ZURÜCK"
+        if ziel is not None:
+            f.text(s, "◀  " + GRUPPE[disz].format(f"{ziel:g}") + "  ▶", (L.W // 2, L.y(82) + 56), "s", GREEN, "center")
+        hilfe = f"◀▶ Liste  ·  ▲▼ blättern  ·  OK {'BESTE' if self.neueste else 'NEUESTE'}  ·  ZURÜCK"
         f.text(s, hilfe, (L.W // 2, L.H - 16), "xs", DIM, "center")
-        disz = list(DISZIPLINEN)[self.sel]
-        liste, spalten = self.liste(), DISZIPLINEN[disz][0]
+        spalten = DISZIPLINEN[disz][0]
         if not liste:
             return f.text(s, "NOCH KEINE EINTRÄGE", (L.W // 2, L.y(300)), "m", DIM, "center")
         zeit = lambda e: time.strftime("%H:%M", time.localtime(e["id"] / 1000))
@@ -454,7 +535,7 @@ class Highscore(Scene):
         else:
             kopf = (("#", 70, lambda e: ""), ("NAME", 120, lambda e: e["name"])) + spalten + (
                 ("UHR", 890, zeit) if self.neueste else ("DATUM", 890, lambda e: e["datum"]),)
-        klein, y0 = "xs" if L.hoch else "s", L.y(82) + 90
+        klein, y0 = "xs" if L.hoch else "s", L.y(82) + 116
         for name, x, _ in kopf:
             f.text(s, name, (x, y0 - 32), "xs", DIM)
         self.n = n = max(1, (L.H - y0 - 70) // self.ZEILE)
@@ -470,7 +551,7 @@ class Highscore(Scene):
                 f.text(s, str(i) if name == "#" else wert(e), (x, y + 18), "m", col, "midleft")
             for name, x, wert in kopf[2:]:
                 f.text(s, wert(e), (x, y + 18), klein, col, "midleft")
-        f.text(s, f"{'NEUESTE' if self.neueste else 'BESTE'} ZUERST  ·  {self.oben + 1}–{min(self.oben + n, len(liste))}"
+        f.text(s, f"{'ALLE, NEUESTE' if self.neueste else 'BESTE JE NAME'}  ·  {self.oben + 1}–{min(self.oben + n, len(liste))}"
                   f" von {len(liste)}", (L.W // 2, L.H - 44), "xs", GREEN, "center")
         if len(liste) > n:
             h, top = n * self.ZEILE, y0

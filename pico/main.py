@@ -2,7 +2,7 @@ import sys, time, machine, rp2, select
 from machine import Pin, ADC, mem32
 from ubinascii import hexlify
 
-VERSION = 4
+VERSION = 5
 A = (0, 3, 6, 9, 12, 15)
 B = (28, 27, 22, 21, 14, 18, 17)
 CH = A + B
@@ -16,7 +16,7 @@ temp = ADC(4)
 uid = hexlify(machine.unique_id()).decode()
 w = sys.stdout.write
 
-N_LED, HELL = 19, 0.35
+N_LED, HELL = 19, 0.35     # Obergrenze; "D <0–100>" von der App dimmt darunter
 RUHE, BRUCH = (40, 0, 0), (255, 140, 40)
 
 
@@ -88,7 +88,17 @@ modus, zeile, t_cmd, f = "auto", "", 0, 0    # auto: Pico färbt selbst · host:
 
 
 def befehl(p):
-    global modus, welle, periode, k_alt, farbe_w
+    global modus, welle, periode, k_alt, farbe_w, HELL, RAD
+    if len(p) == 2 and p[0] == "D":
+        h = 0.35 * min(100, max(0, int(p[1]))) / 100
+        if h != HELL:
+            HELL, farbe_w = h, None
+            RAD = [wort(_rad(x)) for x in range(96)]
+            for s in LED:
+                s.farbe = None
+            if modus == "auto":
+                auto(raw)
+        return False
     if len(p) == 3 and p[0] == "W":
         periode = max(100, int(p[1]))
         if p[2] != farbe_w:
