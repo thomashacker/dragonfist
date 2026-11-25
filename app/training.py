@@ -390,15 +390,32 @@ class NameEntry(Scene):
 
 
 class Highscore(Scene):
+    """▲▼ blättert, OK/Gelb wechselt zwischen BESTE und NEUESTE, ◀▶ wechselt die Disziplin."""
+    bare, ZEILE = True, 44
+
     def __init__(self, app, disz="TRAINING", neu=None):
         super().__init__(app)
-        self.sel, self.neu = list(DISZIPLINEN).index(disz), neu
+        self.sel, self.neu, self.oben, self.neueste, self.n = list(DISZIPLINEN).index(disz), neu, 0, False, 1
+        self.zeigen_neu = neu is not None
+
+    def liste(self):
+        disz = list(DISZIPLINEN)[self.sel]
+        beste = rangliste(self.app.scores, disz)
+        rang = {e["id"]: i for i, e in enumerate(beste, 1)}
+        return [(rang[e["id"]], e) for e in (sorted(beste, key=lambda e: -e["id"]) if self.neueste else beste)]
 
     def on(self, a):
         if a in ("left", "right"):
             self.sel = (self.sel + (1 if a == "right" else -1)) % len(DISZIPLINEN)
+            self.oben = 0
             self.app.play("move")
-        elif a in ("back", "ok"):
+        elif a in ("up", "down"):
+            self.oben = max(0, self.oben + (1 if a == "down" else -1))
+            self.app.play("move")
+        elif a in ("ok", "gelb"):
+            self.neueste, self.oben = not self.neueste, 0
+            self.app.play("ok")
+        elif a == "back":
             self.app.play("back")
             self.app.pop()
 
@@ -411,28 +428,38 @@ class Highscore(Scene):
             on = i == self.sel
             pygame.draw.rect(s, INK, r) if on else pygame.draw.rect(s, LO, r, 1)
             f.text(s, d, r.center, "xs", BG if on else DIM, "center")
+        hilfe = f"◀▶ Disziplin  ·  ▲▼ blättern  ·  OK {'BESTE' if self.neueste else 'NEUESTE'}  ·  ZURÜCK"
+        f.text(s, hilfe, (L.W // 2, L.H - 16), "xs", DIM, "center")
         disz = list(DISZIPLINEN)[self.sel]
-        liste, spalten = rangliste(self.app.scores, disz), DISZIPLINEN[disz][0]
+        liste, spalten = self.liste(), DISZIPLINEN[disz][0]
         if not liste:
             return f.text(s, "NOCH KEINE EINTRÄGE", (L.W // 2, L.y(300)), "m", DIM, "center")
+        zeit = lambda e: time.strftime("%H:%M", time.localtime(e["id"] / 1000))
         if L.hoch:                                                     # schmal: ohne Datum, Werte kleiner
             kopf = (("#", 20, lambda e: ""), ("NAME", 72, lambda e: e["name"])) + tuple(
                 (name, 240 + j * 90, wert) for j, (name, _, wert) in enumerate(spalten))
         else:
             kopf = (("#", 70, lambda e: ""), ("NAME", 120, lambda e: e["name"])) + spalten + (
-                ("DATUM", 890, lambda e: e["datum"]),)
+                ("UHR", 890, zeit) if self.neueste else ("DATUM", 890, lambda e: e["datum"]),)
         klein, y0 = "xs" if L.hoch else "s", L.y(82) + 90
         for name, x, _ in kopf:
             f.text(s, name, (x, y0 - 32), "xs", DIM)
-        n = (L.H - y0 - 60) // 44
-        zeilen = list(enumerate(liste[:n], 1))
-        rang = next((i for i, e in enumerate(liste, 1) if e["id"] == self.neu), None)
-        if rang and rang > n:
-            zeilen.append((rang, liste[rang - 1]))
-        for j, (i, e) in enumerate(zeilen):
-            y = y0 + j * 44
+        self.n = n = max(1, (L.H - y0 - 70) // self.ZEILE)
+        if self.zeigen_neu:
+            self.zeigen_neu = False
+            k = next((k for k, (_, e) in enumerate(liste) if e["id"] == self.neu), 0)
+            self.oben = max(0, k - n // 2) if k >= n else 0
+        self.oben = min(self.oben, max(0, len(liste) - n))
+        for j, (i, e) in enumerate(liste[self.oben:self.oben + n]):
+            y = y0 + j * self.ZEILE
             col = GREEN if e["id"] == self.neu else INK
             for name, x, wert in kopf[:2]:
                 f.text(s, str(i) if name == "#" else wert(e), (x, y + 18), "m", col, "midleft")
             for name, x, wert in kopf[2:]:
                 f.text(s, wert(e), (x, y + 18), klein, col, "midleft")
+        f.text(s, f"{'NEUESTE' if self.neueste else 'BESTE'} ZUERST  ·  {self.oben + 1}–{min(self.oben + n, len(liste))}"
+                  f" von {len(liste)}", (L.W // 2, L.H - 44), "xs", GREEN, "center")
+        if len(liste) > n:
+            h, top = n * self.ZEILE, y0
+            pygame.draw.rect(s, LO, (L.W - 8, top, 4, h))
+            pygame.draw.rect(s, INK, (L.W - 8, top + h * self.oben // len(liste), 4, max(12, h * n // len(liste))))
