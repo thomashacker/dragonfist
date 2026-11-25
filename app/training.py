@@ -18,7 +18,7 @@ DISZIPLINEN = {
     "TRAINING": ((("Ø KM/H", 400, lambda e: f"{e['v_avg']:.1f}"), ("MAX", 520, lambda e: f"{e['v_max']:.1f}"),
                   ("SCHLÄGE", 640, lambda e: str(e["n"])), ("ZEIT", 780, lambda e: mmss(e["dauer"]))),
                  lambda e: (-e["v_avg"], -e["n"])),
-    "ZEIT": ((("SCHLÄGE", 400, lambda e: str(e["n"])), ("LIMIT", 520, lambda e: f"{e['ziel']} s"),
+    "ZEIT": ((("SCHLÄGE", 400, lambda e: str(e["n"])), ("LIMIT", 520, lambda e: mmss(e["ziel"])),
               ("PRO S", 640, lambda e: f"{e['takt_avg']:.2f}"), ("Ø KM/H", 780, lambda e: f"{e['v_avg']:.1f}")),
              lambda e: (-e["takt_avg"], -e["v_avg"])),
     "SCHLÄGE": ((("ZEIT", 400, lambda e: f"{e['dauer_s']:.2f} s"), ("SCHLÄGE", 540, lambda e: str(e["ziel"])),

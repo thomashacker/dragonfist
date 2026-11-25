@@ -6,7 +6,7 @@ import time
 import pygame
 
 from scenes import L, BG, INK, DIM, LO, GREEN, SPIEL, Scene
-from training import Stats, Wahl, auswerten, graf_rect, kennzahlen, zaehler, _mittel
+from training import Stats, Wahl, auswerten, graf_rect, kennzahlen, mmss, zaehler, _mittel
 
 COUNTDOWN = 5
 ROT = (255, 70, 60)
@@ -16,32 +16,55 @@ def _zeit(r):
     return r["tb_s"] if r.get("tb_s") is not None else r["t"]
 
 
+UHR = (10, 10, 6, 10)
+
+
+def _ziffern(v, basen):
+    d = []
+    for b in reversed(basen):
+        v, r = divmod(v, b)
+        d.append(r)
+    return d[::-1]
+
+
+def _zahl(d, basen):
+    v = 0
+    for x, b in zip(d, basen):
+        v = v * b + x
+    return v
+
+
 class Setup(Scene):
-    """Einstellungen eines Modus; die Wahl bleibt in settings.json."""
+    """Einstellungen eines Modus Stelle für Stelle; die Werte bleiben in settings.json."""
     bare = True
 
     def __init__(self, app, titel, zeilen, start):
         super().__init__(app)
-        self.titel, self.zeilen, self.start, self.z = titel, zeilen, start, 0
+        self.titel, self.zeilen, self.start = titel, zeilen, start
+        self.stellen = [(k, i) for k, z in enumerate(zeilen) for i in range(len(z[2]))]
+        self.c = len(zeilen[0][2]) - 1
 
     def wert(self, k):
-        _, key, opts, _ = self.zeilen[k]
-        v = self.app.cfg.get(key)
-        return v if v in opts else opts[0]
+        _, key, basen, _ = self.zeilen[k]
+        hi = _zahl([b - 1 for b in basen], basen)
+        return min(max(int(self.app.cfg.get(key) or 0), 0), hi)
 
     def on(self, a):
         app = self.app
-        if a in ("up", "down"):
-            self.z = (self.z + (1 if a == "down" else -1)) % len(self.zeilen)
+        if a in ("left", "right"):
+            self.c = (self.c + (1 if a == "right" else -1)) % len(self.stellen)
             app.play("move")
-        elif a in ("left", "right"):
-            _, key, opts, _ = self.zeilen[self.z]
-            app.cfg[key] = opts[(opts.index(self.wert(self.z)) + (1 if a == "right" else -1)) % len(opts)]
+        elif a in ("up", "down"):
+            k, i = self.stellen[self.c]
+            _, key, basen, _ = self.zeilen[k]
+            d = _ziffern(self.wert(k), basen)
+            d[i] = (d[i] + (1 if a == "up" else -1)) % basen[i]
+            app.cfg[key] = _zahl(d, basen)
             app.save()
             app.play("move")
         elif a == "ok":
             app.play("ok")
-            app.push(self.start(app, *[self.wert(k) for k in range(len(self.zeilen))]))
+            app.push(self.start(app, *[max(1, self.wert(k)) for k in range(len(self.zeilen))]))
         elif a == "back":
             app.play("back")
             app.pop()
@@ -50,13 +73,24 @@ class Setup(Scene):
         f = self.app.font
         f.text(s, self.titel, (L.W // 2, L.y(60)), "l", INK, "center")
         y0 = 300 - (len(self.zeilen) - 1) * 80
-        for k, (name, _, _, einheit) in enumerate(self.zeilen):
-            y, on = L.y(y0 + k * 160), k == self.z
+        ck, ci = self.stellen[self.c]
+        for k, (name, _, basen, einheit) in enumerate(self.zeilen):
+            y, on, gr = L.y(y0 + k * 160), k == ck, "xl" if k == ck else "l"
             f.text(s, name, (L.W // 2, y - 66), "s", INK if on else DIM, "center")
-            w = f"{self.wert(k)}{einheit}"
-            f.text(s, f"<  {w}  >" if on else w, (L.W // 2, y + 10), "xl" if on else "l", INK if on else DIM, "center")
-        hilfe = "▲▼ Zeile  ·  " if len(self.zeilen) > 1 else ""
-        f.text(s, hilfe + "◀▶ ändern  ·  OK Start  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
+            zeichen = [(str(z), i) for i, z in enumerate(_ziffern(self.wert(k), basen))]
+            if basen is UHR:
+                zeichen.insert(2, (":", None))
+            breiten = [f.f[gr].size(z)[0] for z, _ in zeichen]
+            x = L.W // 2 - sum(breiten) // 2
+            for (z, i), b in zip(zeichen, breiten):
+                cur = on and i == ci
+                r = f.text(s, z, (x, y + 10), gr, GREEN if cur else INK if on else DIM, "midleft")
+                if cur:
+                    pygame.draw.rect(s, GREEN, (x, r.bottom + 2, b, 5))
+                x += b
+            if einheit:
+                f.text(s, einheit, (L.W // 2, y + 88), "xs", DIM, "center")
+        f.text(s, "◀▶ Stelle  ·  ▲▼ ändern  ·  OK Start  ·  ZURÜCK", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
 
 class Spiel(Scene):
@@ -92,7 +126,7 @@ class Zeit(Spiel):
         f = self.app.font
         if self.t0 is None:
             self.t0 = now
-        f.text(s, f"ZEIT  ·  {self.limit} s", (L.W // 2, L.y(46)), "l", INK, "center")
+        f.text(s, f"ZEIT  ·  {mmss(self.limit)}", (L.W // 2, L.y(46)), "l", INK, "center")
         if self.phase == "countdown":
             n = COUNTDOWN - int(now - self.t0)
             if n <= 0:
@@ -281,13 +315,13 @@ def balken(s, y, k, h=12):
 
 
 def zeit(app):
-    return Setup(app, "ZEIT", [("ZEITLIMIT", "zeit_limit", (10, 20, 30, 60), " s")], Zeit)
+    return Setup(app, "ZEIT", [("ZEITLIMIT", "zeit_limit", UHR, "min : s")], Zeit)
 
 
 def serie(app):
-    return Setup(app, "SCHLÄGE", [("SCHLAGANZAHL", "serie_n", (10, 20, 50, 100), "")], Serie)
+    return Setup(app, "SCHLÄGE", [("SCHLAGANZAHL", "serie_n", (10, 10, 10), "")], Serie)
 
 
 def reaktion(app):
-    return Setup(app, "REAKTION", [("RUNDEN", "reak_runden", (5, 10, 20), ""),
-                                   ("SCHLÄGE PRO KOMBO", "reak_kombo", (1, 2, 3, 4), "")], Reaktion)
+    return Setup(app, "REAKTION", [("RUNDEN", "reak_runden", (10, 10), ""),
+                                   ("SCHLÄGE PRO KOMBO", "reak_kombo", (10,), "")], Reaktion)

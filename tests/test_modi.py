@@ -10,7 +10,7 @@ def test_zeit_countdown_limit_and_highscore(app):
     to_title(app)
     frames(app, ["ok", "right", "ok"])
     assert top(app) == "Setup"
-    frames(app, ["left", "left"])
+    frames(app, ["left", "down", "down"])
     assert app.cfg["zeit_limit"] == 10
     frames(app, ["ok"])
     sc = app.stack[-1]
@@ -31,6 +31,23 @@ def test_zeit_countdown_limit_and_highscore(app):
     frames(app, ["ok", "ok", "ok"])
     e = rangliste(app.scores, "ZEIT")
     assert top(app) == "Highscore" and len(e) == 1 and e[0]["ziel"] == 10 and e[0]["n"] == 3
+
+
+def test_setup_edits_each_digit(app):
+    app.cfg |= dict(zeit_limit=30, reak_runden=10, reak_kombo=1)
+    app.push(modi.zeit(app))
+    frames(app, ["left", "down", "down", "down", "left", "up", "up"])
+    assert app.cfg["zeit_limit"] == 120
+    frames(app, ["down", "down", "right", "up", "right", "up", "up"])
+    assert app.cfg["zeit_limit"] == 12
+    frames(app, ["down", "down", "left", "down"])
+    assert app.cfg["zeit_limit"] == 0 and app.stack[-1].wert(0) == 0
+    frames(app, ["ok"])
+    assert top(app) == "Zeit" and app.stack[-1].limit == 1
+    app.pop()
+    app.push(modi.reaktion(app))
+    frames(app, ["right", "up", "up", "left", "left", "down"])
+    assert (app.cfg["reak_runden"], app.cfg["reak_kombo"]) == (0, 3)
 
 
 def test_serie_stops_at_target(app):
