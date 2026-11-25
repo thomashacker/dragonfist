@@ -64,6 +64,14 @@ def test_serie_stops_at_target(app):
     frames(app, n=1)
     st = app.stack[-1].st
     assert top(app) == "Stats" and st["n"] == 10 and st["disz"] == "SCHLÄGE"
+    sc = app.stack[-1]
+    frames(app, ["right"])
+    assert sc.seite == 1 and not sc.auto
+    frames(app, ["left", "left"])
+    assert sc.seite == 4
+    sc.t0 -= 30
+    frames(app, n=1)
+    assert sc.seite == 4
 
 
 def test_reaktion_combo_and_false_start(app):

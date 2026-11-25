@@ -184,32 +184,38 @@ class Stats(Scene):
 
     def __init__(self, app, st):
         super().__init__(app)
-        self.st, self.t0, self.seite = st, None, -1
+        self.st, self.t0, self.seite, self.ziel, self.auto = st, None, -1, None, True
         self.seiten = (self.zeit, self.schlaege, self.takt, self.tempo, self.weg)
         rnd = random.Random(1)
         self.jitter = [(rnd.uniform(-0.012, 0.012), rnd.uniform(-0.012, 0.012)) for _ in st["wege"]]
 
     def on(self, a):
-        if a in ("ok", "back"):
+        if a in ("left", "right"):
+            jetzt = max(self.seite, 0) if self.ziel is None else self.ziel
+            self.ziel = (jetzt + (1 if a == "right" else -1)) % len(self.seiten)
+        elif a in ("ok", "back"):
             self.app.play("ok")
             self.app.push(Wahl(self.app, self.st))
 
     def draw(self, s, now):
         if self.t0 is None:
             self.t0 = now
+        if self.ziel is not None:
+            self.t0, self.auto = now, False
         u = now - self.t0
-        i = int(u // SEITE_S) % len(self.seiten)
+        i = int(u // SEITE_S) % len(self.seiten) if self.auto else self.seite if self.ziel is None else self.ziel
+        self.ziel = None
         if i != self.seite:
             self.seite = i
             self.app.play("move")
-        k = min(1.0, (u % SEITE_S) / ANIM_S)
+        k = min(1.0, (u % SEITE_S if self.auto else u) / ANIM_S)
         k = 1 - (1 - k) ** 3
         f = self.app.font
         f.text(s, self.TITEL[i], (L.W // 2, L.y(46)), "l", INK, "center")
         for j in range(len(self.seiten)):
             pygame.draw.circle(s, INK if j == i else LO, (L.W // 2 + (j - 2) * 22, L.y(90)), 5)
         self.seiten[i](s, f, k)
-        f.text(s, "OK  speichern oder verwerfen", (L.W // 2, L.H - 18), "xs", DIM, "center")
+        f.text(s, "◀▶ blättern  ·  OK  speichern oder verwerfen", (L.W // 2, L.H - 18), "xs", DIM, "center")
 
     def zeit(self, s, f, k):
         f.text(s, mmss(self.st["dauer"] * k), (L.W // 2, L.y(290)), "xl", INK, "center")
