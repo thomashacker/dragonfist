@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [0.22.0] – 2026-11-25
+
+### Added
+- EINSTELLUNGEN > WLAN: ◀▶ wählt ein gespeichertes WLAN, OK verbindet.
+- `deploy/hotspot.sh` speichert den Handy-Hotspot als Ersatz-WLAN (niedrigere Priorität, verbindet von selbst, wenn das Haupt-WLAN fehlt).
+
 ## [0.21.0] – 2026-11-25
 
 ### Changed
