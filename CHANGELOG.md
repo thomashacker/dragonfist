@@ -3,6 +3,12 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [1.4.0] – 2026-11-26
+
+### Added
+- Mehrere Songs pro Szene: alle `<szene>_theme*.mp3` im Musikordner, bei jedem Start einer zufällig (zweiter Action-Song).
+- LED-Streifen zeigen den Fortschritt jeder Hand statt nur die Farbe: A ¼ orange, B ½ blau, zurück aus B ¾ lila, Treffer voll grün, nicht durch ¼ rot. Der Streifen wächst und schrumpft weich, nach dem Treffer blendet er aus (gegen das Flackern). Pico-Firmware 6: `L RRGGBB:n` setzt nur n LEDs von unten.
+
 ## [1.3.0] – 2026-11-26
 
 ### Added

@@ -2,7 +2,7 @@ import sys, time, machine, rp2, select
 from machine import Pin, ADC, mem32
 from ubinascii import hexlify
 
-VERSION = 5
+VERSION = 6
 A = (0, 3, 6, 9, 12, 15)
 B = (28, 27, 22, 21, 14, 18, 17)
 CH = A + B
@@ -111,9 +111,10 @@ def befehl(p):
                 s.farbe = None
     elif len(p) == 3 and p[0] == "L":
         modus = "host"
-        for s, x in zip(LED, p[1:]):
-            v = int(x, 16)
-            s.setze((v >> 16, v >> 8 & 255, v & 255))
+        for s, x in zip(LED, p[1:]):                    # "RRGGBB" ganzer Streifen, "RRGGBB:n" nur n LEDs von unten
+            c, _, n = x.partition(":")
+            v = int(c, 16)
+            s.setze((v >> 16, v >> 8 & 255, v & 255), min(N_LED, int(n)) if n else N_LED)
     elif p == ["T"]:
         modus = "tanz"
     else:

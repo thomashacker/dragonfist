@@ -1,5 +1,6 @@
 import json
 import time
+from pathlib import Path
 
 import pygame
 
@@ -189,19 +190,40 @@ def test_music_follows_scene(app):
     assert app.track is None
 
 
+def led(app):
+    return next(c for c in reversed(app.st.out) if not c.startswith("D "))
+
+
 def test_leds_dance_in_menu_and_follow_punch_in_mode(app):
     to_title(app)
-    assert app.st.out[-1] == "T"
+    assert led(app) == "T"
     frames(app, ["ok", "ok"])
-    assert top(app) == "Training" and app.st.out[-1] == "L 000000 000000"
+    assert top(app) == "Training" and led(app) == "L 000000:0 000000:0"
     app.sim_punch("R")
     frames(app, n=4)
-    assert app.st.out[-1] == "L 000000 0050ff"
+    assert led(app) == "L 000000:0 00ff3c:19"
     assert [r["hand"] for r in app.stack[-1].punches if r["ok"]] == ["R"]
     for hand in "LR":
         app.led[hand] = ("punkt", time.monotonic() - 1)
     frames(app, n=1)
-    assert app.st.out[-1] == "L 000000 000000"
+    assert led(app).endswith(":18")
+    frames(app, n=40)
+    assert led(app) == "L 000000:0 00ff3c:0"
+
+
+def test_led_stufen_wachsen_weich(app):
+    t = 100.0
+    app.led_jetzt = t
+    app.led["L"] = ("a", t + 1.5)
+    werte = []
+    for k in range(1, 8):
+        werte.append(app._streifen("L", t + k * 0.016))
+        app.led_jetzt = t + k * 0.016
+    n = [int(w.split(":")[1]) for w in werte]
+    assert n == sorted(n) and n[0] < 5 and n[-1] == 5 and werte[-1].startswith("ff5a00")
+    app.led["L"] = ("fehl", t + 2)
+    w = app._streifen("L", t + 0.2)
+    assert w.startswith("ff0000")
 
 
 def test_hochformat_umschalten_und_drehen(app):
@@ -304,3 +326,19 @@ def test_geraete_check(app, monkeypatch):
     zeile(st, "GERÄTE")
     frames(app, ["ok"], n=1)
     assert top(app) == "Settings"
+
+
+def test_action_song_zufaellig(app, monkeypatch, tmp_path):
+    import main
+    for n in ("action_theme.mp3", "action_theme_2.mp3", "title_theme.mp3"):
+        (tmp_path / n).write_bytes(b"")
+    geladen = []
+    monkeypatch.setattr(main, "MUSIC", tmp_path)
+    monkeypatch.setattr(pygame.mixer.music, "load", lambda p: geladen.append(Path(p).name))
+    monkeypatch.setattr(pygame.mixer.music, "play", lambda *a, **k: None)
+    app.force_mute = False
+    for _ in range(30):
+        app.track = None
+        app.stack[-1].music = "action"
+        app.music()
+    assert set(geladen) == {"action_theme.mp3", "action_theme_2.mp3"}
