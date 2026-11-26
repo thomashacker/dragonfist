@@ -103,6 +103,7 @@ class Punch:
                     if f.ph == "AB":
                         if i >= self.n_a and not f.b:
                             f.tbr = tus
+                            self.events.append(("zurueck", f.hand))
                         elif i < self.n_a and not f.a:
                             f.tar = tus
                     if not f.a | f.b:

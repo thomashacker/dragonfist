@@ -30,8 +30,11 @@ VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 CFG_FILE = ROOT / "settings.json"
 SCORES = ROOT / "highscores.json"
 MUSIC = ROOT / "app" / "assets" / "music"
-FARBE = dict(a=(255, 90, 0), b=(0, 255, 0), punkt=(0, 80, 255), fehl=(255, 0, 0))
-HALTEN = dict(punkt=0.8, fehl=0.8)
+# Schlag-Fortschritt je Hand: Farbe und Anteil des Streifens; nach HALTEN s ohne neue Stufe blendet er aus
+STUFE = dict(a=((255, 90, 0), 0.25), b=((0, 90, 255), 0.5), zurueck=((160, 0, 255), 0.75),
+             punkt=((0, 255, 60), 1.0), fehl=((255, 0, 0), 0.25))
+HALTEN = dict(a=1.5, b=1.5, zurueck=1.5, punkt=0.6, fehl=0.6)
+LEDS, AUF_S, AB_S = 19, 0.08, 0.45            # LEDs je Streifen; so lange dauert ganz an bzw. ganz aus
 CFG = dict(audio=None, volume=80, ton=True, musik=True, abstand=200, zeit_limit=30, serie_n=20, reak_runden=10,
            reak_kombo=1, ausrichtung="hoch_l", auto_update=False, licht=100)
 DREHUNG = {"quer": 0, "hoch_l": 90, "hoch_r": -90}
@@ -86,6 +89,7 @@ class App:
             self.reader.start()
         self.stack, self.toast, self.sim_s, self.fade, self.track = [], None, 0.0, None, None
         self.toasts, self.led, self.led_sent, self.led_t = {}, {"L": None, "R": None}, None, 0.0
+        self.fuell, self.led_jetzt, self.d_t = {"L": [0.0, (0, 0, 0)], "R": [0.0, (0, 0, 0)]}, 0.0, 0.0
         self.status, self.status_t, self.lock = None, 0.0, None
         self.push(Intro(self))
 
@@ -152,11 +156,11 @@ class App:
         self.track = want
         try:
             if want:
-                pygame.mixer.music.load(str(MUSIC / f"{want}_theme.mp3"))
+                pygame.mixer.music.load(str(random.choice(sorted(MUSIC.glob(f"{want}_theme*.mp3")))))
                 pygame.mixer.music.play(-1, fade_ms=600)
             else:
                 pygame.mixer.music.fadeout(400)
-        except (pygame.error, FileNotFoundError):
+        except (pygame.error, FileNotFoundError, IndexError):
             pass
 
     @property
@@ -235,7 +239,7 @@ class App:
 
     def lights(self, sc, leds, now):
         for k, hand in leds:
-            self.led[hand] = (k, now + HALTEN[k] if k in HALTEN else None)
+            self.led[hand] = (k, now + HALTEN[k])
         if sc.leds == "show":
             cmd = sc.licht(now)
         elif sc.leds == "tanz":
@@ -244,18 +248,28 @@ class App:
             periode, (r, g, b) = sc.welle()
             cmd = f"W {periode} {r:02x}{g:02x}{b:02x}"
         else:
-            hex6 = []
-            for hand in "LR":
-                k = self.led[hand]
-                if k and k[1] and now > k[1]:
-                    k = self.led[hand] = None
-                r, g, b = FARBE[k[0]] if k else (0, 0, 0)
-                hex6.append(f"{r:02x}{g:02x}{b:02x}")
-            cmd = "L " + " ".join(hex6)
+            cmd = "L " + " ".join(self._streifen(hand, now) for hand in "LR")
+        self.led_jetzt = now
+        if now - self.d_t > 1:
+            self.d_t = now
+            self.st.send(f"D {self.cfg['licht']}")
         if cmd != self.led_sent or now - self.led_t > 1:
             self.led_sent, self.led_t = cmd, now
-            self.st.send(f"D {self.cfg['licht']}")
             self.st.send(cmd)
+
+    def _streifen(self, hand, now):
+        """Weich wachsen und schrumpfen statt hart umschalten: so flackert es auch bei schnellen Serien nicht."""
+        k, f = self.led[hand], self.fuell[hand]
+        if k and now > k[1]:
+            k = self.led[hand] = None
+        if k:
+            f[1] = STUFE[k[0]][0]
+        ziel = STUFE[k[0]][1] * LEDS if k else 0.0
+        dt = min(now - self.led_jetzt, 0.1)
+        schritt = LEDS * dt / (AUF_S if ziel > f[0] else AB_S)
+        f[0] = min(ziel, f[0] + schritt) if ziel > f[0] else max(ziel, f[0] - schritt)
+        r, g, b = f[1]
+        return f"{r:02x}{g:02x}{b:02x}:{round(f[0])}"
 
     def overlay(self, now):
         s, f = self.screen, self.font

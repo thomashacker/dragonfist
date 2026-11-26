@@ -135,7 +135,8 @@ def test_both_hands_at_once():
     p.edge(B1, 1, 90_000, 0.09)
     r = one(p, 0.2)
     assert r["hand"] == "L" and r["dt"] == 40_000 and p.n == 2
-    assert p.events == [("a", "L"), ("a", "R"), ("b", "R"), ("b", "L"), ("punkt", "R"), ("punkt", "L")]
+    assert p.events == [("a", "L"), ("a", "R"), ("b", "R"), ("b", "L"), ("zurueck", "R"), ("punkt", "R"),
+                        ("zurueck", "L"), ("punkt", "L")]
 
 
 def test_left_fist_crossing_to_right_b_is_one_left_hit():
