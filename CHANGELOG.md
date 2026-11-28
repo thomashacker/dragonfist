@@ -3,6 +3,14 @@
 Every pull request to `main` bumps `VERSION` and adds an entry here.
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), versions: [SemVer](https://semver.org/lang/de/).
 
+## [1.4.1] – 2026-11-28
+
+### Changed
+- Geräte-Check nicht mehr oben rechts und in den Einstellungen, sondern nur in der Kalibrierung (unten: „GERÄTE: ALLE DA“ oder was fehlt).
+
+### Fixed
+- Touch wird auch erkannt, wenn er sich als „MPI7002“ statt „Touchscreen“ meldet.
+
 ## [1.4.0] – 2026-11-26
 
 ### Added

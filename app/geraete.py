@@ -17,7 +17,7 @@ def _datei(pfad, *worte):
 
 ERWARTET = (
     ("LAUTSPRECHER", lambda app: _datei("/proc/asound/cards", "usb-audio")),
-    ("TOUCH", lambda app: _datei("/proc/bus/input/devices", "touch")),
+    ("TOUCH", lambda app: _datei("/proc/bus/input/devices", "touch", "mpi7002")),    # Name je nach Treiberstand
     ("JOYSTICK", lambda app: bool(app.input.pads)),
 )
 
