@@ -321,11 +321,9 @@ def test_geraete_check(app, monkeypatch):
         c.v, c.t = 1, 0.0
     app.st.ch[9].v = 0
     assert app.geraete.text(app, 101.0) == "FEHLT: LAUTSPRECHER" and app.geraete.text(app, 110.0) == "FEHLT: B4"
-    st = scenes.Settings(app)
-    app.push(st)
-    zeile(st, "GERÄTE")
-    frames(app, ["ok"], n=1)
-    assert top(app) == "Settings"
+    app.push(scenes.Calibration(app))
+    frames(app, n=1)
+    assert top(app) == "Calibration"
 
 
 def test_action_song_zufaellig(app, monkeypatch, tmp_path):

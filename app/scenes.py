@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 
 import pygame
@@ -175,7 +174,6 @@ class Settings(Scene):
             ("AUTO-UPDATE", lambda: "AN" if c["auto_update"] else "AUS",
              lambda d: self.set("auto_update", not c["auto_update"]), None),
             ("UPDATE", self.update_text, None, self.update_los),
-            ("GERÄTE", lambda: app.geraete.text(app, time.monotonic()), None, None),
             ("TESTTON", lambda: "OK drücken", None, lambda: app.sfx.play("treffer")),
             ("ABSTAND A–B", lambda: f"{c['abstand']:g} mm", lambda d: self.abstand(d), None),
             ("KALIBRIERUNG", lambda: "OK drücken", None, lambda: app.push(Calibration(app))),
@@ -332,6 +330,9 @@ class Calibration(Scene):
     def draw(self, s, now):
         self.ui.s = s
         self.ui.draw(self.app.st, now)
+        text = self.app.geraete.text(self.app, now)
+        self.app.font.text(s, "GERÄTE: " + text, (L.W // 2, L.H - 44), "s", GREEN if text == "ALLE DA" else (255, 90, 70),
+                           "center")
 
 
 class Intro(Scene):

@@ -23,7 +23,6 @@ from netz import Netz
 from praesentation import Praesentation
 from scenes import L, QUER, BG, INK, DIM, GREEN, Intro, ausrichten
 
-ROT = (255, 90, 70)
 from splash import hold_lock, status
 
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
@@ -274,9 +273,8 @@ class App:
     def overlay(self, now):
         s, f = self.screen, self.font
         live = self.sim or self.st.live(now)
-        fehlt = self.geraete.fehlt(self, now)
-        f.text(s, "SIM" if self.sim else ("FEHLT: " + ", ".join(fehlt) if fehlt else "PICO"), (L.W - 16, 12), "xs",
-               GREEN if live and not fehlt else ROT, "topright")
+        f.text(s, "SIM" if self.sim else ("PICO" if live else "KEIN PICO"), (L.W - 16, 12), "xs",
+               GREEN if live else DIM, "topright")
         for hand, x in (("L", L.W * 3 // 10), ("R", L.W * 7 // 10)):
             r = self.toasts.get(hand)
             if r and now - r["t"] < 2.5:
